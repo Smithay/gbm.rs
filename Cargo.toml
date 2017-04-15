@@ -1,0 +1,14 @@
+[package]
+name = "gbm"
+description = "libgbm bindings for rust"
+license = "MIT"
+documentation = "https://Drakulix.github.io/gbm.rs"
+repository = "https://github.com/Drakulix/gbm.rs"
+version = "0.1.0"
+keywords = ["wayland", "gbm", "drm", "bindings"]
+categories = ["external-ffi-bindings"]
+authors = ["Drakulix (Victor Brekenfeld)"]
+
+[dependencies]
+gbm-sys = { version = "1.0", path = "./gbm-sys" }
+libc = "0.2"
