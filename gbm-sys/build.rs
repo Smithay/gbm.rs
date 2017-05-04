@@ -9,6 +9,7 @@ fn main()
         .ctypes_prefix("libc")
         .whitelisted_type(r"^gbm_.*$")
         .whitelisted_function(r"^gbm_.*$")
+        .constified_enum("gbm_bo_flags")
         .generate().unwrap();
 
     println!("cargo:rustc-link-lib=dylib=gbm");

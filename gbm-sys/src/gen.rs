@@ -89,9 +89,12 @@ pub enum gbm_bo_format {
     GBM_BO_FORMAT_XRGB8888 = 0,
     GBM_BO_FORMAT_ARGB8888 = 1,
 }
-pub const gbm_bo_flags_GBM_BO_USE_CURSOR_64X64: gbm_bo_flags =
-    gbm_bo_flags::GBM_BO_USE_CURSOR;
-#[repr(u32)]
+pub const gbm_bo_flags_GBM_BO_USE_SCANOUT: gbm_bo_flags = 1;
+pub const gbm_bo_flags_GBM_BO_USE_CURSOR: gbm_bo_flags = 2;
+pub const gbm_bo_flags_GBM_BO_USE_CURSOR_64X64: gbm_bo_flags = 2;
+pub const gbm_bo_flags_GBM_BO_USE_RENDERING: gbm_bo_flags = 4;
+pub const gbm_bo_flags_GBM_BO_USE_WRITE: gbm_bo_flags = 8;
+pub const gbm_bo_flags_GBM_BO_USE_LINEAR: gbm_bo_flags = 16;
 /**
  * Flags to indicate the intended use for the buffer - these are passed into
  * gbm_bo_create(). The caller must set the union of all the flags that are
@@ -100,14 +103,7 @@ pub const gbm_bo_flags_GBM_BO_USE_CURSOR_64X64: gbm_bo_flags =
  * \sa Use gbm_device_is_format_supported() to check if the combination of format
  * and use flags are supported
  */
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum gbm_bo_flags {
-    GBM_BO_USE_SCANOUT = 1,
-    GBM_BO_USE_CURSOR = 2,
-    GBM_BO_USE_RENDERING = 4,
-    GBM_BO_USE_WRITE = 8,
-    GBM_BO_USE_LINEAR = 16,
-}
+pub type gbm_bo_flags = libc::c_uint;
 extern "C" {
     pub fn gbm_device_get_fd(gbm: *mut gbm_device) -> libc::c_int;
 }
