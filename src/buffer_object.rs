@@ -1,3 +1,4 @@
+use std::io::{Result as IoResult, Error as IoError};
 use std::marker::PhantomData;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::ops::{Deref, DerefMut};
@@ -7,47 +8,38 @@ use std::slice;
 #[cfg(feature = "import_image")]
 use image::{ImageBuffer, Rgba};
 
-use ::{AsRaw, FromRaw};
+use ::{AsRaw, FromRaw, Format};
 
+/// A gbm buffer object
 pub struct BufferObject<'a, T: 'static> {
     ffi: *mut ::ffi::gbm_bo,
     _lifetime: PhantomData<&'a ()>,
     _userdata: PhantomData<T>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BufferObjectFormat {
-    XRGB8888,
-    ARGB8888,
-}
-
-impl BufferObjectFormat {
-    pub fn as_ffi(&self) -> u32 {
-        match *self {
-            BufferObjectFormat::XRGB8888 => ::ffi::gbm_bo_format::GBM_BO_FORMAT_XRGB8888 as u32,
-            BufferObjectFormat::ARGB8888 => ::ffi::gbm_bo_format::GBM_BO_FORMAT_ARGB8888 as u32,
-        }
-    }
-
-    pub fn from_ffi(raw: u32) -> Option<BufferObjectFormat> {
-        match raw {
-            x if x == ::ffi::gbm_bo_format::GBM_BO_FORMAT_XRGB8888 as u32 => Some(BufferObjectFormat::XRGB8888),
-            x if x == ::ffi::gbm_bo_format::GBM_BO_FORMAT_ARGB8888 as u32 => Some(BufferObjectFormat::ARGB8888),
-            _ => None
-        }
-    }
-}
-
+/// Flags to indicate the intended use for the buffer - these are passed into
+/// `Device::create_buffer_object`.
+///
+/// Use `Device::is_format_supported` to check if the combination of format
+/// and use flags are supported
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BufferObjectFlags {
+    /// Buffer is going to be presented to the screen using an API such as KMS
     Scanout,
+    /// Buffer is going to be used as cursor
     Cursor,
+    /// Buffer is to be used for rendering - for example it is going to be used
+    /// as the storage for a color buffer
     Rendering,
+    /// Buffer can be used for gbm_bo_write.  This is guaranteed to work
+    /// with `BufferObjectFlags::Cursor`, but may not work for other combinations.
     Write,
+    /// Buffer is linear, i.e. not tiled.
     Linear,
 }
 
 impl BufferObjectFlags {
+    #[doc(hidden)]
     pub fn as_ffi(&self) -> u32 {
         match *self {
             BufferObjectFlags::Scanout => ::ffi::gbm_bo_flags_GBM_BO_USE_SCANOUT as u32,
@@ -59,34 +51,54 @@ impl BufferObjectFlags {
     }
 }
 
+/// Flags to indicate the type of mapping for the buffer - these are
+/// passed into `BufferObject::map()``. The caller must set the union of all the
+/// flags that are appropriate.
+///
+/// These flags are independent of the `BufferObjectFlags` creation flags. However,
+/// mapping the buffer may require copying to/from a staging buffer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BufferObjectTransferFlags {
+    /// Buffer contents read back (or accessed directly) at transfer create time.
     Read,
+    /// Buffer contents will be written back at unmap time
+    /// (or modified as a result of being accessed directly)
     Write,
+    /// Read/modify/write
     ReadWrite,
 }
 
+/// Abstraction representing the handle to a buffer allocated by the manager
 pub type BufferObjectHandle = ::ffi::gbm_bo_handle;
 
-pub enum InvalidBufferError {
-    InsuffientSize,
-}
-
+/// Common functionality for all mapped buffer objects
 pub trait ReadableMappedBufferObject<'a> {
+    /// Get the stride of the buffer object
+    ///
+    /// This is calculated by the backend when it does the allocation of the buffer.
     fn stride(&self) -> u32;
+    /// The X (top left origin) starting position of the mapped region for the buffer
     fn x(&self) -> u32;
+    /// The Y (top left origin) starting position of the mapped region for the buffer
     fn y(&self) -> u32;
+    /// The height of the mapped region for the buffer
     fn height(&self) -> u32;
+    /// The width of the mapped region for the buffer
     fn width(&self) -> u32;
+    /// Access to the underlying image buffer
     fn buffer(&'a self) -> &'a [u8];
 }
 
+/// Common functionality for all writable mapped buffer objects
 pub trait WritableMappedBufferObject<'a>: ReadableMappedBufferObject<'a> {
+    /// Mutable access to the underlying image buffer
     fn buffer_mut(&'a mut self) -> &'a mut [u8];
 }
 
+/// A read-only mapped buffer object
 pub struct MappedBufferObject<'a, T: 'static> {
     bo: &'a BufferObject<'a, T>,
+    addr: *mut ::libc::c_void,
     buffer: &'a mut [u8],
     stride: u32,
     height: u32,
@@ -95,8 +107,10 @@ pub struct MappedBufferObject<'a, T: 'static> {
     y: u32,
 }
 
+/// A read-write mapped buffer object
 pub struct MappedBufferObjectRW<'a, T: 'static> {
     bo: &'a mut BufferObject<'a, T>,
+    addr: *mut ::libc::c_void,
     buffer: &'a mut [u8],
     stride: u32,
     height: u32,
@@ -187,13 +201,13 @@ impl<'a, T: 'static> WritableMappedBufferObject<'a> for MappedBufferObjectRW<'a,
 
 impl<'a, T: 'static> Drop for MappedBufferObject<'a, T> {
     fn drop(&mut self) {
-        unsafe { ::ffi::gbm_bo_unmap(self.bo.ffi, self.buffer as *mut [u8] as *mut _) }
+        unsafe { ::ffi::gbm_bo_unmap(self.bo.ffi, self.addr) }
     }
 }
 
 impl<'a, T: 'static> Drop for MappedBufferObjectRW<'a, T> {
     fn drop(&mut self) {
-        unsafe { ::ffi::gbm_bo_unmap(self.bo.ffi, self.buffer as *mut [u8] as *mut _) }
+        unsafe { ::ffi::gbm_bo_unmap(self.bo.ffi, self.addr) }
     }
 }
 
@@ -203,72 +217,105 @@ unsafe extern fn destroy<T: 'static>(_: *mut ::ffi::gbm_bo, ptr: *mut ::libc::c_
 }
 
 impl<'a, T: 'static> BufferObject<'a, T> {
+    /// Get the width of the buffer object
     pub fn width(&self) -> u32 {
         unsafe { ::ffi::gbm_bo_get_width(self.ffi) }
     }
 
+    /// Get the height of the buffer object
     pub fn height(&self) -> u32 {
         unsafe { ::ffi::gbm_bo_get_height(self.ffi) }
     }
 
+    /// Get the stride of the buffer object
     pub fn stride(&self) -> u32 {
         unsafe { ::ffi::gbm_bo_get_width(self.ffi) }
     }
 
-    pub fn format(&self) -> BufferObjectFormat {
-        BufferObjectFormat::from_ffi(unsafe { ::ffi::gbm_bo_get_format(self.ffi) }).expect("libgbm returned invalid buffer format")
+    /// Get the format of the buffer object
+    pub fn format(&self) -> Format {
+        Format::from_ffi(unsafe { ::ffi::gbm_bo_get_format(self.ffi) }).expect("libgbm returned invalid buffer format")
     }
 
+    /// Get the handle of the buffer object
+    ///
+    /// This is stored in the platform generic union `BufferObjectHandle` type. However
+    /// the format of this handle is platform specific.
     pub fn handle(&self) -> BufferObjectHandle {
         unsafe { ::ffi::gbm_bo_get_handle(self.ffi) }
     }
 
-    pub fn map(&'a self, x: u32, y: u32, width: u32, height: u32) -> MappedBufferObject<'a, T> {
+    /// Map a region of a gbm buffer object for cpu access
+    ///
+    /// This function maps a region of a gbm bo for cpu read access.
+    pub fn map(&'a self, x: u32, y: u32, width: u32, height: u32) -> IoResult<MappedBufferObject<'a, T>> {
         unsafe {
             let mut buffer: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
-            ::ffi::gbm_bo_map(self.ffi, x, y, width, height, ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ as u32, &mut stride as *mut _, &mut buffer as *mut _);
+            let ptr = ::ffi::gbm_bo_map(self.ffi, x, y, width, height, ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ as u32, &mut stride as *mut _, &mut buffer as *mut _);
 
-            MappedBufferObject {
-                bo: self,
-                buffer: slice::from_raw_parts_mut(buffer as *mut _, ((height*stride+height*width)*4) as usize),
-                stride: stride,
-                height: height,
-                width: width,
-                x: x,
-                y: y,
+            if ptr.is_null() {
+                Err(IoError::last_os_error())
+            } else {
+                Ok(MappedBufferObject {
+                    bo: self,
+                    addr: ptr,
+                    buffer: slice::from_raw_parts_mut(buffer as *mut _, ((height*stride+height*width)*4) as usize),
+                    stride: stride,
+                    height: height,
+                    width: width,
+                    x: x,
+                    y: y,
+                })
             }
         }
     }
 
-    pub fn map_mut(&'a mut self, x: u32, y: u32, width: u32, height: u32) -> MappedBufferObjectRW<'a, T> {
+    /// Map a region of a gbm buffer object for cpu access
+    ///
+    /// This function maps a region of a gbm bo for cpu read/write access.
+    pub fn map_mut(&'a mut self, x: u32, y: u32, width: u32, height: u32) -> IoResult<MappedBufferObjectRW<'a, T>> {
         unsafe {
             let mut buffer: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
-            ::ffi::gbm_bo_map(self.ffi, x, y, width, height, ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ as u32, &mut stride as *mut _, &mut buffer as *mut _);
+            let ptr = ::ffi::gbm_bo_map(self.ffi, x, y, width, height, ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ as u32, &mut stride as *mut _, &mut buffer as *mut _);
 
-            MappedBufferObjectRW {
-                bo: self,
-                buffer: slice::from_raw_parts_mut(buffer as *mut _, ((height*stride+height*width)*4) as usize),
-                stride: stride,
-                height: height,
-                width: width,
-                x: x,
-                y: y,
+            if ptr.is_null() {
+                Err(IoError::last_os_error())
+            } else {
+                Ok(MappedBufferObjectRW {
+                    bo: self,
+                    addr: ptr,
+                    buffer: slice::from_raw_parts_mut(buffer as *mut _, ((height*stride+height*width)*4) as usize),
+                    stride: stride,
+                    height: height,
+                    width: width,
+                    x: x,
+                    y: y,
+                })
             }
         }
     }
 
-    pub fn write(&mut self, buffer: &[u8]) -> Result<(), InvalidBufferError> {
-        let size = self.height() * self.width() + self.height() * self.stride();
-
-        if buffer.len() < size as usize {
-            Err(InvalidBufferError::InsuffientSize)
+    ///  Write data into the buffer object
+    ///
+    /// If the buffer object was created with the `BufferObjectFlags::Write` flag,
+    /// this function can be used to write data into the buffer object.  The
+    /// data is copied directly into the object and it's the responsibility
+    /// of the caller to make sure the data represents valid pixel data,
+    /// according to the width, height, stride and format of the buffer object.
+    pub fn write(&mut self, buffer: &[u8]) -> IoResult<()> {
+        let result = unsafe { ::ffi::gbm_bo_write(self.ffi, buffer.as_ptr() as *const _, buffer.len()) };
+        if result != 0 {
+            Err(IoError::last_os_error())
         } else {
             Ok(())
         }
     }
 
+    /// Sets the userdata of the buffer object.
+    ///
+    /// If previously userdata was set, it is returned.
     pub fn set_userdata(&mut self, userdata: T) -> Option<T> {
         let old = self.take_userdata();
 
@@ -278,10 +325,12 @@ impl<'a, T: 'static> BufferObject<'a, T> {
         old
     }
 
+    /// Clears the set userdata of the buffer object.
     pub fn clear_userdata(&mut self) {
         let _ = self.take_userdata();
     }
 
+    /// Returns a reference to set userdata, if any.
     pub fn userdata(&self) -> Option<&T> {
         let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
 
@@ -292,6 +341,7 @@ impl<'a, T: 'static> BufferObject<'a, T> {
         }
     }
 
+    /// Returns a mutable reference to set userdata, if any.
     pub fn userdata_mut(&mut self) -> Option<&mut T> {
         let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
 
@@ -302,6 +352,9 @@ impl<'a, T: 'static> BufferObject<'a, T> {
         }
     }
 
+    /// Takes ownership of previously set userdata, if any.
+    ///
+    /// This removes the userdata from the buffer object.
     pub fn take_userdata(&mut self) -> Option<T> {
         let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
 
