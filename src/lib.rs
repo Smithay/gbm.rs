@@ -20,6 +20,9 @@ extern crate wayland_server;
 #[cfg(feature = "import_egl")]
 extern crate egli;
 
+#[cfg(feature = "drm-support")]
+extern crate drm;
+
 mod device;
 mod buffer_object;
 mod surface;

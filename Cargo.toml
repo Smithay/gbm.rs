@@ -14,8 +14,10 @@ gbm-sys = { version = "1.0", path = "./gbm-sys" }
 libc = "0.2"
 wayland-server = { version = "~0.9.4", optional = true }
 egli = { version = "~0.2.1", optional = true }
+drm = { git = "https://github.com/Drakulix/drm-rs", branch = "future", optional = true }
 
 [features]
 default = ["import_wayland", "import_egl"]
 import_wayland = ["wayland-server"]
 import_egl = ["egli", "egli/egl_1_5"]
+drm-support = ["drm"]

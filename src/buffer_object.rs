@@ -8,6 +8,9 @@ use std::slice;
 #[cfg(feature = "import_image")]
 use image::{ImageBuffer, Rgba};
 
+#[cfg(feature = "drm-support")]
+use drm::buffer::{Buffer as DrmBuffer, Id as DrmId, PixelFormat as DrmPixelFormat};
+
 use ::{AsRaw, FromRaw, Format};
 
 /// A gbm buffer object
@@ -395,5 +398,24 @@ impl<'a, T: 'static> FromRaw<::ffi::gbm_bo> for BufferObject<'a, T> {
 impl<'a, T: 'static> Drop for BufferObject<'a, T> {
     fn drop(&mut self) {
         unsafe { ::ffi::gbm_bo_destroy(self.ffi) }
+    }
+}
+
+#[cfg(feature = "drm-support")]
+impl<'a, T: 'static> DrmBuffer for BufferObject<'a, T> {
+    fn size(&self) -> (u32, u32) {
+        (self.width(), self.height())
+    }
+
+    fn format(&self) -> DrmPixelFormat {
+        DrmPixelFormat::from_raw(self.format().as_ffi()).unwrap()
+    }
+
+    fn pitch(&self) -> u32 {
+        self.stride()
+    }
+
+    fn handle(&self) -> DrmId {
+        unsafe { DrmId::from_raw(*self.handle().u32.as_ref()) }
     }
 }
