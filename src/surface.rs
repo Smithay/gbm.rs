@@ -39,6 +39,7 @@ impl<'a, T: 'static> Drop for SurfaceBufferHandle<'a, T> {
 }
 
 /// Errors that may happen when locking the front buffer
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrontBufferError {
     /// No free buffers are currently available
     NoFreeBuffers,
