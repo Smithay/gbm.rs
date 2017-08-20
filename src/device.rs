@@ -69,7 +69,7 @@ impl Device {
     }
 
     /// Allocate a new surface object
-    pub fn create_surface<'a>(&'a mut self, width: u32, height: u32, format: Format, usage: &[BufferObjectFlags]) -> IoResult<Surface<'a>> {
+    pub fn create_surface<'a, T: 'static>(&'a mut self, width: u32, height: u32, format: Format, usage: &[BufferObjectFlags]) -> IoResult<Surface<'a, T>> {
         let ptr = unsafe { ::ffi::gbm_surface_create(self.ffi, width, height, format.as_ffi(), usage.iter().map(|x| x.as_ffi()).fold(0u32, |flag, x| flag | x)) };
         if ptr.is_null() {
             Err(IoError::last_os_error())
