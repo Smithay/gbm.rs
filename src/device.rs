@@ -69,7 +69,7 @@ impl Device {
     }
 
     /// Allocate a new surface object
-    pub fn create_surface<'a, T: 'static>(&'a mut self, width: u32, height: u32, format: Format, usage: &[BufferObjectFlags]) -> IoResult<Surface<'a, T>> {
+    pub fn create_surface<'a, T: 'static>(&'a self, width: u32, height: u32, format: Format, usage: &[BufferObjectFlags]) -> IoResult<Surface<'a, T>> {
         let ptr = unsafe { ::ffi::gbm_surface_create(self.ffi, width, height, format.as_ffi(), usage.iter().map(|x| x.as_ffi()).fold(0u32, |flag, x| flag | x)) };
         if ptr.is_null() {
             Err(IoError::last_os_error())
@@ -79,7 +79,7 @@ impl Device {
     }
 
     ///  Allocate a buffer object for the given dimensions
-    pub fn create_buffer_object<'a, T: 'static>(&'a mut self, width: u32, height: u32, format: Format, usage: &[BufferObjectFlags]) -> IoResult<BufferObject<'a, T>> {
+    pub fn create_buffer_object<'a, T: 'static>(&'a self, width: u32, height: u32, format: Format, usage: &[BufferObjectFlags]) -> IoResult<BufferObject<'a, T>> {
         let ptr = unsafe { ::ffi::gbm_bo_create(self.ffi, width, height, format.as_ffi(), usage.iter().map(|x| x.as_ffi()).fold(0u32, |flag, x| flag | x)) };
         if ptr.is_null() {
             Err(IoError::last_os_error())
@@ -97,7 +97,7 @@ impl Device {
     /// The gbm bo shares the underlying pixels but its life-time is
     /// independent of the foreign object.
     #[cfg(feature = "import_wayland")]
-    pub fn import_buffer_object_from_wayland<'a, T: 'static>(&'a mut self, buffer: &WlBuffer, usage: &[BufferObjectFlags]) -> IoResult<BufferObject<'a, T>> {
+    pub fn import_buffer_object_from_wayland<'a, T: 'static>(&'a self, buffer: &WlBuffer, usage: &[BufferObjectFlags]) -> IoResult<BufferObject<'a, T>> {
         let ptr = unsafe { ::ffi::gbm_bo_import(self.ffi, ::ffi::GBM_BO_IMPORT::WL_BUFFER as u32, buffer.ptr() as *mut _, usage.iter().map(|x| x.as_ffi()).fold(0u32, |flag, x| flag | x)) };
         if ptr.is_null() {
             Err(IoError::last_os_error())
@@ -115,7 +115,7 @@ impl Device {
     /// The gbm bo shares the underlying pixels but its life-time is
     /// independent of the foreign object.
     #[cfg(feature = "import_egl")]
-    pub fn import_buffer_object_from_egl<'a, T: 'static>(&'a mut self, buffer: &EGLImage, usage: &[BufferObjectFlags]) -> IoResult<BufferObject<'a, T>> {
+    pub fn import_buffer_object_from_egl<'a, T: 'static>(&'a self, buffer: &EGLImage, usage: &[BufferObjectFlags]) -> IoResult<BufferObject<'a, T>> {
         let ptr = unsafe { ::ffi::gbm_bo_import(self.ffi, ::ffi::GBM_BO_IMPORT::EGL_IMAGE as u32, *buffer, usage.iter().map(|x| x.as_ffi()).fold(0u32, |flag, x| flag | x)) };
         if ptr.is_null() {
             Err(IoError::last_os_error())
@@ -132,7 +132,7 @@ impl Device {
     ///
     /// The gbm bo shares the underlying pixels but its life-time is
     /// independent of the foreign object.
-    pub fn import_buffer_object_from_dma_buf<'a, T: 'static>(&'a mut self, buffer: RawFd, width: u32, height: u32, stride: u32, format: Format, usage: &[BufferObjectFlags]) -> IoResult<BufferObject<'a, T>> {
+    pub fn import_buffer_object_from_dma_buf<'a, T: 'static>(&'a self, buffer: RawFd, width: u32, height: u32, stride: u32, format: Format, usage: &[BufferObjectFlags]) -> IoResult<BufferObject<'a, T>> {
         let mut fd_data = ::ffi::gbm_import_fd_data {
             fd: buffer,
             width: width,
