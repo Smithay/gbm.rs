@@ -1,6 +1,6 @@
 use std::ffi::CStr;
 use std::io::{Result as IoResult, Error as IoError};
-use std::os::unix::io::{RawFd, AsRawFd};
+use std::os::unix::io::{RawFd, AsRawFd, IntoRawFd};
 
 #[cfg(feature = "import_egl")]
 use egli::egl::EGLImage;
@@ -38,7 +38,12 @@ impl FromRaw<::ffi::gbm_device> for Device {
 }
 
 impl Device {
-    /// Open a DRM device from a given unix file descriptor.
+    /// Open a GBM device from a given IO object
+    pub fn new<I: IntoRawFd>(io: I) -> IoResult<Device> {
+        unsafe { Device::new_from_fd(io.into_raw_fd()) }
+    }
+
+    /// Open a GBM device from a given unix file descriptor.
     ///
     /// The file descriptor passed in is used by the backend to communicate with
     /// platform for allocating the memory. For allocations using DRI this would be
@@ -49,7 +54,7 @@ impl Device {
     /// If the file descriptor was not created from a usable device behavior is
     /// not defined.
     ///
-    pub unsafe fn new(fd: RawFd) -> IoResult<Device> {
+    pub unsafe fn new_from_fd(fd: RawFd) -> IoResult<Device> {
         let ptr = ::ffi::gbm_create_device(fd);
         if ptr.is_null() {
             Err(IoError::last_os_error())
