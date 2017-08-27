@@ -232,7 +232,7 @@ impl<'a, T: 'static> BufferObject<'a, T> {
 
     /// Get the stride of the buffer object
     pub fn stride(&self) -> u32 {
-        unsafe { ::ffi::gbm_bo_get_width(self.ffi) }
+        unsafe { ::ffi::gbm_bo_get_stride(self.ffi) }
     }
 
     /// Get the format of the buffer object
