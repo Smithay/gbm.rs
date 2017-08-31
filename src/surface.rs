@@ -1,9 +1,10 @@
+
+
+use {AsRaw, FromRaw};
+use BufferObject;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
-
-use ::{AsRaw, FromRaw};
-use ::BufferObject;
 
 /// A gbm rendering surface
 pub struct Surface<'a, T: 'static> {
@@ -34,7 +35,7 @@ impl<'a, T: 'static> Drop for SurfaceBufferHandle<'a, T> {
         let mut bo = None;
         mem::swap(&mut bo, &mut self.1);
         unsafe { ::ffi::gbm_surface_release_buffer(self.0.ffi, bo.as_mut().unwrap().as_raw_mut()) };
-        mem::forget(bo); //don't drop
+        mem::forget(bo); // don't drop
     }
 }
 
@@ -70,8 +71,7 @@ impl<'a, T: 'static> Surface<'a, T> {
     /// error.
     ///
     /// If an error occurs a `FrontBufferError` is returned.
-    pub fn lock_front_buffer(&'a self) -> Result<SurfaceBufferHandle<'a, T>, FrontBufferError>
-    {
+    pub fn lock_front_buffer(&'a self) -> Result<SurfaceBufferHandle<'a, T>, FrontBufferError> {
         if unsafe { ::ffi::gbm_surface_has_free_buffers(self.ffi) != 0 } {
             let buffer_ptr = unsafe { ::ffi::gbm_surface_lock_front_buffer(self.ffi) };
             if !buffer_ptr.is_null() {

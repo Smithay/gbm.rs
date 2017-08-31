@@ -1,12 +1,12 @@
 [package]
 name = "gbm-sys"
-version = "1.0.0"
+version = "0.1.0"
 authors = ["Drakulix (Victor Brekenfeld)"]
 build = "build.rs"
 description = "Bindgen generated unsafe libgbm wrapper"
 documentation = "https://Drakulix.github.io/gbm.rs/gbm-sys"
 repository = "https://github.com/Drakulix/gbm.rs/tree/master/gbm-sys"
-keywords = ["gdm", "bindings"]
+keywords = ["gbm", "bindings"]
 categories = ["external-ffi-bindings"]
 license = "MIT"
 
@@ -14,7 +14,10 @@ license = "MIT"
 path = "src/lib.rs"
 
 [build-dependencies]
-bindgen = "0.22"
+bindgen = { version = "0.22", optional = true }
 
 [dependencies]
 libc = "0.2"
+
+[features]
+gen = ["bindgen"]

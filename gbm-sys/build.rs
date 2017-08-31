@@ -1,5 +1,15 @@
+#[cfg(feature = "gen")]
 extern crate bindgen;
 
+#[cfg(feature = "gen")]
+use std::env;
+#[cfg(feature = "gen")]
+use std::path::Path;
+
+#[cfg(not(feature = "gen"))]
+fn main() {}
+
+#[cfg(feature = "gen")]
 fn main()
 {
     // Setup bindings builder
@@ -10,10 +20,14 @@ fn main()
         .whitelisted_type(r"^gbm_.*$")
         .whitelisted_function(r"^gbm_.*$")
         .constified_enum("gbm_bo_flags")
-        .generate().unwrap();
+        .generate()
+        .unwrap();
 
-    println!("cargo:rustc-link-lib=dylib=gbm");
+    println!("cargo:rerun-if-changed=include/gbm.h");
 
     // Generate the bindings
-    generated.write_to_file("src/gen.rs").unwrap();
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("gen.rs");
+
+    generated.write_to_file(dest_path).unwrap();
 }

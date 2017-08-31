@@ -85,4 +85,13 @@ pub enum GBM_BO_IMPORT {
     FD        = 0x5503,
 }
 
-include!("gen.rs");
+#[cfg(feature = "gen")]
+include!(concat!(env!("OUT_DIR"), "/gen.rs"));
+
+#[cfg(all(not(feature = "gen"),
+          target_os="linux",
+          target_arch="x86_64"))]
+include!(concat!("platforms/linux/x86_64/gen.rs"));
+
+#[link(name = "gbm")]
+extern {}

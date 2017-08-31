@@ -1,10 +1,9 @@
-//!
 //! # Safe `libgbm` bindings for [rust](https://www.rust-lang.org)
 //!
 //! The Generic Buffer Manager
 //!
 //! This module provides an abstraction that the caller can use to request a
-//!buffer from the underlying memory management system for the platform.
+//! buffer from the underlying memory management system for the platform.
 //!
 //! This allows the creation of portable code whilst still allowing access to
 //! the underlying memory manager.
@@ -14,10 +13,10 @@
 extern crate gbm_sys as ffi;
 extern crate libc;
 
-#[cfg(feature = "import_wayland")]
+#[cfg(feature = "import-wayland")]
 extern crate wayland_server;
 
-#[cfg(feature = "import_egl")]
+#[cfg(feature = "import-egl")]
 extern crate egli;
 
 #[cfg(feature = "drm-support")]
@@ -27,8 +26,8 @@ mod device;
 mod buffer_object;
 mod surface;
 
-pub use self::device::*;
 pub use self::buffer_object::*;
+pub use self::device::*;
 pub use self::surface::*;
 
 /// Trait for types that allow to optain the underlying raw libinput pointer.
@@ -252,7 +251,7 @@ impl Format {
 
             x if x == ::ffi::GBM_FORMAT_AYUV as u32 => Some(AYUV),
 
-            _ => None
+            _ => None,
         }
     }
 }

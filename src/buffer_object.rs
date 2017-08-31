@@ -1,17 +1,16 @@
-use std::io::{Result as IoResult, Error as IoError};
-use std::marker::PhantomData;
-use std::os::unix::io::{AsRawFd, RawFd};
-use std::ops::{Deref, DerefMut};
-use std::ptr;
-use std::slice;
 
-#[cfg(feature = "import_image")]
-use image::{ImageBuffer, Rgba};
+
+use {AsRaw, Format, FromRaw};
 
 #[cfg(feature = "drm-support")]
 use drm::buffer::{Buffer as DrmBuffer, Id as DrmId, PixelFormat as DrmPixelFormat};
 
-use ::{AsRaw, FromRaw, Format};
+use std::io::{Error as IoError, Result as IoResult};
+use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
+use std::os::unix::io::{AsRawFd, RawFd};
+use std::ptr;
+use std::slice;
 
 /// A gbm buffer object
 pub struct BufferObject<'a, T: 'static> {
@@ -214,9 +213,11 @@ impl<'a, T: 'static> Drop for MappedBufferObjectRW<'a, T> {
     }
 }
 
-unsafe extern fn destroy<T: 'static>(_: *mut ::ffi::gbm_bo, ptr: *mut ::libc::c_void) {
+unsafe extern "C" fn destroy<T: 'static>(_: *mut ::ffi::gbm_bo, ptr: *mut ::libc::c_void) {
     let ptr = ptr as *mut T;
-    if !ptr.is_null() { let _ = Box::from_raw(ptr); }
+    if !ptr.is_null() {
+        let _ = Box::from_raw(ptr);
+    }
 }
 
 impl<'a, T: 'static> BufferObject<'a, T> {
@@ -237,7 +238,8 @@ impl<'a, T: 'static> BufferObject<'a, T> {
 
     /// Get the format of the buffer object
     pub fn format(&self) -> Format {
-        Format::from_ffi(unsafe { ::ffi::gbm_bo_get_format(self.ffi) }).expect("libgbm returned invalid buffer format")
+        Format::from_ffi(unsafe { ::ffi::gbm_bo_get_format(self.ffi) })
+            .expect("libgbm returned invalid buffer format")
     }
 
     /// Get the handle of the buffer object
@@ -255,7 +257,16 @@ impl<'a, T: 'static> BufferObject<'a, T> {
         unsafe {
             let mut buffer: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
-            let ptr = ::ffi::gbm_bo_map(self.ffi, x, y, width, height, ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ as u32, &mut stride as *mut _, &mut buffer as *mut _);
+            let ptr = ::ffi::gbm_bo_map(
+                self.ffi,
+                x,
+                y,
+                width,
+                height,
+                ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ as u32,
+                &mut stride as *mut _,
+                &mut buffer as *mut _,
+            );
 
             if ptr.is_null() {
                 Err(IoError::last_os_error())
@@ -263,7 +274,10 @@ impl<'a, T: 'static> BufferObject<'a, T> {
                 Ok(MappedBufferObject {
                     bo: self,
                     addr: ptr,
-                    buffer: slice::from_raw_parts_mut(buffer as *mut _, ((height*stride+height*width)*4) as usize),
+                    buffer: slice::from_raw_parts_mut(
+                        buffer as *mut _,
+                        ((height * stride + height * width) * 4) as usize,
+                    ),
                     stride: stride,
                     height: height,
                     width: width,
@@ -277,11 +291,26 @@ impl<'a, T: 'static> BufferObject<'a, T> {
     /// Map a region of a gbm buffer object for cpu access
     ///
     /// This function maps a region of a gbm bo for cpu read/write access.
-    pub fn map_mut(&'a mut self, x: u32, y: u32, width: u32, height: u32) -> IoResult<MappedBufferObjectRW<'a, T>> {
+    pub fn map_mut(
+        &'a mut self,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> IoResult<MappedBufferObjectRW<'a, T>> {
         unsafe {
             let mut buffer: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
-            let ptr = ::ffi::gbm_bo_map(self.ffi, x, y, width, height, ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ as u32, &mut stride as *mut _, &mut buffer as *mut _);
+            let ptr = ::ffi::gbm_bo_map(
+                self.ffi,
+                x,
+                y,
+                width,
+                height,
+                ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ as u32,
+                &mut stride as *mut _,
+                &mut buffer as *mut _,
+            );
 
             if ptr.is_null() {
                 Err(IoError::last_os_error())
@@ -289,7 +318,10 @@ impl<'a, T: 'static> BufferObject<'a, T> {
                 Ok(MappedBufferObjectRW {
                     bo: self,
                     addr: ptr,
-                    buffer: slice::from_raw_parts_mut(buffer as *mut _, ((height*stride+height*width)*4) as usize),
+                    buffer: slice::from_raw_parts_mut(
+                        buffer as *mut _,
+                        ((height * stride + height * width) * 4) as usize,
+                    ),
                     stride: stride,
                     height: height,
                     width: width,
@@ -323,7 +355,9 @@ impl<'a, T: 'static> BufferObject<'a, T> {
         let old = self.take_userdata();
 
         let boxed = Box::new(userdata);
-        unsafe { ::ffi::gbm_bo_set_user_data(self.ffi, Box::into_raw(boxed) as *mut _, Some(destroy::<T>)); }
+        unsafe {
+            ::ffi::gbm_bo_set_user_data(self.ffi, Box::into_raw(boxed) as *mut _, Some(destroy::<T>));
+        }
 
         old
     }

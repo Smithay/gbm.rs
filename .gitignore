@@ -1,2 +1,4 @@
 target
-.vagga
+.travis.yml
+.rustfmt.toml
+Cargo.lock
