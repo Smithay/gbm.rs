@@ -1,7 +1,7 @@
-
-
 use {AsRaw, FromRaw};
 use BufferObject;
+use std::error::{self, Error};
+use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
@@ -46,6 +46,22 @@ pub enum FrontBufferError {
     NoFreeBuffers,
     /// An unknown error happened
     Unknown,
+}
+
+impl fmt::Display for FrontBufferError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description())
+    }
+}
+
+impl error::Error for FrontBufferError {
+    fn description(&self) -> &str {
+        match self {
+            &FrontBufferError::NoFreeBuffers => "No free buffers remaining",
+            &FrontBufferError::Unknown => "Unknown error",
+        }
+    }
+    fn cause(&self) -> Option<&error::Error> { None }
 }
 
 impl<'a, T: 'static> Surface<'a, T> {
