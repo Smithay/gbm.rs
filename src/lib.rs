@@ -7,6 +7,89 @@
 //!
 //! This allows the creation of portable code whilst still allowing access to
 //! the underlying memory manager.
+//!
+//! This library is best used in combination with [`drm-rs`](https://github.com/Smithay/drm-rs),
+//! provided through the `drm-support` feature.
+//!
+//! ## Usage
+//!
+//! Add to your Cargo.toml
+//!
+//! `gbm = "0.2.2"`
+//!
+//! ## Example
+//!
+//! ```rust,no_run
+//! extern crate drm;
+//! extern crate gbm;
+//!
+//! use drm::control::{crtc, framebuffer};
+//! # use drm::control::{Mode, ResourceInfo};
+//! # use drm::control::connector::Info as ConnectorInfo;
+//! use gbm::{Device, Format, BufferObjectFlags};
+//!
+//! # use std::fs::{OpenOptions, File};
+//! # use std::os::unix::io::{AsRawFd, RawFd};
+//! #
+//! # use drm::Device as BasicDevice;
+//! # use drm::control::Device as ControlDevice;
+//! # struct Card(File);
+//! #
+//! # impl AsRawFd for Card {
+//! #     fn as_raw_fd(&self) -> RawFd { self.0.as_raw_fd() }
+//! # }
+//! #
+//! # impl BasicDevice for Card { }
+//! # impl ControlDevice for Card { }
+//! #
+//! # fn init_drm_device() -> Card {
+//! #     let mut options = OpenOptions::new();
+//! #     options.read(true);
+//! #     options.write(true);
+//! #     let file = options.open("/dev/dri/card0").unwrap();
+//! #     Card(file)
+//! # }
+//! # fn main() {
+//! // ... init your drm device ...
+//! let drm = init_drm_device();
+//!
+//! // init a gbm device
+//! let gbm = Device::new_from_drm(&drm).unwrap();
+//!
+//! // create a 4x4 buffer
+//! let mut bo = gbm.create_buffer_object::<()>(
+//!             1280, 720,
+//!             Format::ARGB8888,
+//!             &[
+//!                 BufferObjectFlags::Scanout,
+//!                 BufferObjectFlags::Write,
+//!             ]).unwrap();
+//!
+//! // write something to it (usually use import or egl rendering instead)
+//! let buffer = {
+//!     let mut buffer = Vec::new();
+//!     for i in 0..1280 {
+//!         for _ in 0..720 {
+//!             buffer.push(if i % 2 == 0 { 0 } else { 255 });
+//!         }
+//!     }
+//!     buffer
+//! };
+//! bo.write(&buffer).unwrap();
+//!
+//! // create a framebuffer from our buffer
+//! let fb_info = framebuffer::create(&drm, &bo).unwrap();
+//!
+//! # let res_handles = drm.resource_handles().unwrap();
+//! # let con = *res_handles.connectors().iter().next().unwrap();
+//! # let crtc_handle = *res_handles.crtcs().iter().next().unwrap();
+//! # let connector_info: ConnectorInfo = drm.resource_info(con).unwrap();
+//! # let mode: Mode = connector_info.modes()[0];
+//! #
+//! // display it (and get a crtc, mode and connector before)
+//! crtc::set(&drm, crtc_handle, fb_info.handle(), &[con], (0, 0), Some(mode)).unwrap();
+//! # }
+//! ```
 
 #![deny(missing_docs)]
 

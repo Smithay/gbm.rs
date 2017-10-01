@@ -48,7 +48,7 @@ impl<'a> Device<'a> {
 
     /// Open a GBM device from a given DRM device
     #[cfg(feature = "drm-support")]
-    pub fn new_from_drm<D: DrmDevice + AsRawFd + 'a>(drm: &'a DrmDevice) -> IoResult<Device<'a>> {
+    pub fn new_from_drm<D: DrmDevice + AsRawFd + 'a>(drm: &'a D) -> IoResult<Device<'a>> {
         unsafe { Device::new_from_fd(drm.as_raw_fd()) }
     }
 
