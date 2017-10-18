@@ -5,6 +5,7 @@ addons:
         packages: [ 'libgbm-dev', 'gcc-5' ]
 
 rust:
+  - stable
   - beta
   - nightly
 
