@@ -11,12 +11,6 @@
 //! This library is best used in combination with [`drm-rs`](https://github.com/Smithay/drm-rs),
 //! provided through the `drm-support` feature.
 //!
-//! ## Usage
-//!
-//! Add to your Cargo.toml
-//!
-//! `gbm = "0.2.2"`
-//!
 //! ## Example
 //!
 //! ```rust,no_run
@@ -60,10 +54,8 @@
 //! let mut bo = gbm.create_buffer_object::<()>(
 //!             1280, 720,
 //!             Format::ARGB8888,
-//!             &[
-//!                 BufferObjectFlags::Scanout,
-//!                 BufferObjectFlags::Write,
-//!             ]).unwrap();
+//!             BufferObjectFlags::SCANOUT | BufferObjectFlags::WRITE,
+//!             ).unwrap();
 //!
 //! // write something to it (usually use import or egl rendering instead)
 //! let buffer = {
@@ -104,6 +96,9 @@ extern crate egli;
 
 #[cfg(feature = "drm-support")]
 extern crate drm;
+
+#[macro_use]
+extern crate bitflags;
 
 mod device;
 mod buffer_object;

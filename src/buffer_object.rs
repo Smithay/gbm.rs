@@ -19,55 +19,26 @@ pub struct BufferObject<'a, T: 'static> {
     _userdata: PhantomData<T>,
 }
 
-/// Flags to indicate the intended use for the buffer - these are passed into
-/// `Device::create_buffer_object`.
-///
-/// Use `Device::is_format_supported` to check if the combination of format
-/// and use flags are supported
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BufferObjectFlags {
-    /// Buffer is going to be presented to the screen using an API such as KMS
-    Scanout,
-    /// Buffer is going to be used as cursor
-    Cursor,
-    /// Buffer is to be used for rendering - for example it is going to be used
-    /// as the storage for a color buffer
-    Rendering,
-    /// Buffer can be used for gbm_bo_write.  This is guaranteed to work
-    /// with `BufferObjectFlags::Cursor`, but may not work for other combinations.
-    Write,
-    /// Buffer is linear, i.e. not tiled.
-    Linear,
-}
-
-impl BufferObjectFlags {
-    #[doc(hidden)]
-    pub fn as_ffi(&self) -> u32 {
-        match *self {
-            BufferObjectFlags::Scanout => ::ffi::gbm_bo_flags_GBM_BO_USE_SCANOUT as u32,
-            BufferObjectFlags::Cursor => ::ffi::gbm_bo_flags_GBM_BO_USE_CURSOR as u32,
-            BufferObjectFlags::Rendering => ::ffi::gbm_bo_flags_GBM_BO_USE_RENDERING as u32,
-            BufferObjectFlags::Write => ::ffi::gbm_bo_flags_GBM_BO_USE_WRITE as u32,
-            BufferObjectFlags::Linear => ::ffi::gbm_bo_flags_GBM_BO_USE_LINEAR as u32,
-        }
+bitflags! {
+    /// Flags to indicate the intended use for the buffer - these are passed into
+    /// `Device::create_buffer_object`.
+    ///
+    /// Use `Device::is_format_supported` to check if the combination of format
+    /// and use flags are supported
+    pub struct BufferObjectFlags: u32 {
+        /// Buffer is going to be presented to the screen using an API such as KMS
+        const SCANOUT      = ::ffi::gbm_bo_flags_GBM_BO_USE_SCANOUT as u32;
+        /// Buffer is going to be used as cursor
+        const CURSOR       = ::ffi::gbm_bo_flags_GBM_BO_USE_CURSOR as u32;
+        /// Buffer is to be used for rendering - for example it is going to be used
+        /// as the storage for a color buffer
+        const RENDERING    = ::ffi::gbm_bo_flags_GBM_BO_USE_RENDERING as u32;
+        /// Buffer can be used for gbm_bo_write.  This is guaranteed to work
+        /// with `BufferObjectFlags::Cursor`, but may not work for other combinations.
+        const WRITE        = ::ffi::gbm_bo_flags_GBM_BO_USE_WRITE as u32;
+        /// Buffer is linear, i.e. not tiled.
+        const LINEAR       = ::ffi::gbm_bo_flags_GBM_BO_USE_LINEAR as u32;
     }
-}
-
-/// Flags to indicate the type of mapping for the buffer - these are
-/// passed into `BufferObject::map()``. The caller must set the union of all the
-/// flags that are appropriate.
-///
-/// These flags are independent of the `BufferObjectFlags` creation flags. However,
-/// mapping the buffer may require copying to/from a staging buffer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BufferObjectTransferFlags {
-    /// Buffer contents read back (or accessed directly) at transfer create time.
-    Read,
-    /// Buffer contents will be written back at unmap time
-    /// (or modified as a result of being accessed directly)
-    Write,
-    /// Read/modify/write
-    ReadWrite,
 }
 
 /// Abstraction representing the handle to a buffer allocated by the manager
@@ -307,7 +278,7 @@ impl<'a, T: 'static> BufferObject<'a, T> {
                 y,
                 width,
                 height,
-                ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ as u32,
+                ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ_WRITE as u32,
                 &mut stride as *mut _,
                 &mut buffer as *mut _,
             );

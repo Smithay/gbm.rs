@@ -83,15 +83,12 @@ impl<'a> Device<'a> {
     }
 
     /// Test if a format is supported for a given set of usage flags
-    pub fn is_format_supported(&self, format: Format, usage: &[BufferObjectFlags]) -> bool {
+    pub fn is_format_supported(&self, format: Format, usage: BufferObjectFlags) -> bool {
         unsafe {
             ::ffi::gbm_device_is_format_supported(
                 self.ffi,
                 format.as_ffi(),
-                usage.iter().map(|x| x.as_ffi()).fold(
-                    0u32,
-                    |flag, x| flag | x,
-                ),
+                usage.bits(),
             ) != 0
         }
     }
@@ -102,7 +99,7 @@ impl<'a> Device<'a> {
         width: u32,
         height: u32,
         format: Format,
-        usage: &[BufferObjectFlags],
+        usage: BufferObjectFlags,
     ) -> IoResult<Surface<'a, T>> {
         let ptr = unsafe {
             ::ffi::gbm_surface_create(
@@ -110,10 +107,7 @@ impl<'a> Device<'a> {
                 width,
                 height,
                 format.as_ffi(),
-                usage.iter().map(|x| x.as_ffi()).fold(
-                    0u32,
-                    |flag, x| flag | x,
-                ),
+                usage.bits(),
             )
         };
         if ptr.is_null() {
@@ -129,7 +123,7 @@ impl<'a> Device<'a> {
         width: u32,
         height: u32,
         format: Format,
-        usage: &[BufferObjectFlags],
+        usage: BufferObjectFlags,
     ) -> IoResult<BufferObject<'a, T>> {
         let ptr = unsafe {
             ::ffi::gbm_bo_create(
@@ -137,10 +131,7 @@ impl<'a> Device<'a> {
                 width,
                 height,
                 format.as_ffi(),
-                usage.iter().map(|x| x.as_ffi()).fold(
-                    0u32,
-                    |flag, x| flag | x,
-                ),
+                usage.bits(),
             )
         };
         if ptr.is_null() {
@@ -162,17 +153,14 @@ impl<'a> Device<'a> {
     pub fn import_buffer_object_from_wayland<T: 'static>(
         &'a self,
         buffer: &WlBuffer,
-        usage: &[BufferObjectFlags],
+        usage: BufferObjectFlags,
     ) -> IoResult<BufferObject<'a, T>> {
         let ptr = unsafe {
             ::ffi::gbm_bo_import(
                 self.ffi,
                 ::ffi::GBM_BO_IMPORT::WL_BUFFER as u32,
                 buffer.ptr() as *mut _,
-                usage.iter().map(|x| x.as_ffi()).fold(
-                    0u32,
-                    |flag, x| flag | x,
-                ),
+                usage.bits(),
             )
         };
         if ptr.is_null() {
@@ -194,17 +182,14 @@ impl<'a> Device<'a> {
     pub fn import_buffer_object_from_egl<T: 'static>(
         &'a self,
         buffer: &EGLImage,
-        usage: &[BufferObjectFlags],
+        usage: BufferObjectFlags,
     ) -> IoResult<BufferObject<'a, T>> {
         let ptr = unsafe {
             ::ffi::gbm_bo_import(
                 self.ffi,
                 ::ffi::GBM_BO_IMPORT::EGL_IMAGE as u32,
                 *buffer,
-                usage.iter().map(|x| x.as_ffi()).fold(
-                    0u32,
-                    |flag, x| flag | x,
-                ),
+                usage.bits(),
             )
         };
         if ptr.is_null() {
@@ -229,7 +214,7 @@ impl<'a> Device<'a> {
         height: u32,
         stride: u32,
         format: Format,
-        usage: &[BufferObjectFlags],
+        usage: BufferObjectFlags,
     ) -> IoResult<BufferObject<'a, T>> {
         let mut fd_data = ::ffi::gbm_import_fd_data {
             fd: buffer,
@@ -244,10 +229,7 @@ impl<'a> Device<'a> {
                 self.ffi,
                 ::ffi::GBM_BO_IMPORT::FD as u32,
                 &mut fd_data as *mut ::ffi::gbm_import_fd_data as *mut _,
-                usage.iter().map(|x| x.as_ffi()).fold(
-                    0u32,
-                    |flag, x| flag | x,
-                ),
+                usage.bits(),
             )
         };
         if ptr.is_null() {
