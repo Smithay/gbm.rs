@@ -91,9 +91,6 @@ extern crate libc;
 #[cfg(feature = "import-wayland")]
 extern crate wayland_server;
 
-#[cfg(feature = "import-egl")]
-extern crate egli;
-
 #[cfg(feature = "drm-support")]
 extern crate drm;
 
@@ -117,28 +114,6 @@ pub trait AsRaw<T> {
     fn as_raw_mut(&self) -> *mut T {
         self.as_raw() as *mut _
     }
-}
-
-/// Trait for types that allow to be initialized from a raw pointer
-pub trait FromRaw<T> {
-    /// Create a new instance of this type from a raw pointer.
-    ///
-    /// ## Warning
-    ///
-    /// If you make use of [`Userdata`](./trait.Userdata.html) make sure you use the correct types
-    /// to allow receiving the set userdata. When dealing with raw pointers initialized by other
-    /// libraries this must be done extra carefully to select a correct representation.
-    ///
-    /// If unsure using `()` is always a safe option.
-    ///
-    /// ## Unsafety
-    ///
-    /// If the pointer is pointing to a different struct, invalid memory or `NULL` the returned
-    /// struct may panic on use or cause other undefined behavior.
-    ///
-    /// Effectively cloning objects by using `as_raw` and `from_raw` is also unsafe as
-    /// a double free may occur.
-    unsafe fn from_raw(*mut T) -> Self;
 }
 
 /// Possible pixel formats used

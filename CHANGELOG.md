@@ -1,4 +1,14 @@
 
+## 0.4.0
+
+- API overhaul to use ref-counting internally to:
+  - Enable out-of-order destruction without causing leaks, crashes or double-frees
+  - Remove lifetimes, which made this api a pain to work with and almost required hacks like the `rental` crate
+- Remove `FromRaw` as it is not possible to create most structs anymore without a reference to the underlying `Device`
+- Remove `Device` initializers other then `new_from_fd`. Lifetimes do not exist anymore and it is part of the contract to drop the `Device` before closing the file descriptor.
+- Add `Device` initializer `new` that wraps any open drm device.
+- Implement the [`drm-rs`](https://github.com/Smithay/drm-rs) `Device` traits for `Device` where applicable.
+
 ## 0.3.0
 
 - Upgrade to bitflags 1.0 with associated consts

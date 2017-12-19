@@ -1,41 +1,45 @@
-use {AsRaw, FromRaw};
-use BufferObject;
+use {AsRaw, BufferObject, DeviceDestroyedError};
 use std::error::{self, Error};
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
+use std::rc::{Rc, Weak};
 
 /// A gbm rendering surface
-pub struct Surface<'a, T: 'static> {
-    ffi: *mut ::ffi::gbm_surface,
-    _lifetime: PhantomData<&'a ()>,
+pub struct Surface<T: 'static> {
+    ffi: Rc<*mut ::ffi::gbm_surface>,
+    _device: Weak<*mut ::ffi::gbm_device>,
     _bo_userdata: PhantomData<T>,
 }
 
 /// Handle to a front buffer of a surface
-pub struct SurfaceBufferHandle<'a, T: 'static>(&'a Surface<'a, T>, Option<BufferObject<'a, T>>);
+pub struct SurfaceBufferHandle<T: 'static>(Weak<*mut ::ffi::gbm_surface>, Option<BufferObject<T>>);
 
-impl<'a, T: 'static> Deref for SurfaceBufferHandle<'a, T> {
-    type Target = BufferObject<'a, T>;
+impl<T: 'static> Deref for SurfaceBufferHandle<T> {
+    type Target = BufferObject<T>;
 
     fn deref(&self) -> &Self::Target {
         self.1.as_ref().unwrap()
     }
 }
 
-impl<'a, T: 'static> DerefMut for SurfaceBufferHandle<'a, T> {
+impl<T: 'static> DerefMut for SurfaceBufferHandle<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.1.as_mut().unwrap()
     }
 }
 
-impl<'a, T: 'static> Drop for SurfaceBufferHandle<'a, T> {
+impl<T: 'static> Drop for SurfaceBufferHandle<T> {
     fn drop(&mut self) {
-        let mut bo = None;
-        mem::swap(&mut bo, &mut self.1);
-        unsafe { ::ffi::gbm_surface_release_buffer(self.0.ffi, bo.as_mut().unwrap().as_raw_mut()) };
-        mem::forget(bo); // don't drop
+        if let Some(surface_ptr) = self.0.upgrade() {
+            if self.1.as_ref().unwrap()._device.upgrade().is_some() {
+                let mut bo = None;
+                mem::swap(&mut bo, &mut self.1);
+                unsafe { ::ffi::gbm_surface_release_buffer(*surface_ptr, bo.as_mut().unwrap().as_raw_mut()) };
+                mem::forget(bo); // don't drop
+            }
+        }
     }
 }
 
@@ -46,6 +50,8 @@ pub enum FrontBufferError {
     NoFreeBuffers,
     /// An unknown error happened
     Unknown,
+    /// Device was already released
+    Destroyed(DeviceDestroyedError),
 }
 
 impl fmt::Display for FrontBufferError {
@@ -56,15 +62,22 @@ impl fmt::Display for FrontBufferError {
 
 impl error::Error for FrontBufferError {
     fn description(&self) -> &str {
-        match self {
-            &FrontBufferError::NoFreeBuffers => "No free buffers remaining",
-            &FrontBufferError::Unknown => "Unknown error",
+        match *self {
+            FrontBufferError::NoFreeBuffers => "No free buffers remaining",
+            FrontBufferError::Unknown => "Unknown error",
+            FrontBufferError::Destroyed(ref err) => err.description(),
         }
     }
-    fn cause(&self) -> Option<&error::Error> { None }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            FrontBufferError::Destroyed(ref err) => Some(err),
+            _ => None,
+        }
+    }
 }
 
-impl<'a, T: 'static> Surface<'a, T> {
+impl<T: 'static> Surface<T> {
     ///  Return whether or not a surface has free (non-locked) buffers
     ///
     /// Before starting a new frame, the surface must have a buffer
@@ -73,7 +86,11 @@ impl<'a, T: 'static> Surface<'a, T> {
     /// [have been locked](#method.lock_front_buffer),
     /// the application must check for a free buffer before rendering.
     pub fn has_free_buffers(&self) -> bool {
-        unsafe { ::ffi::gbm_surface_has_free_buffers(self.ffi) != 0 }
+        if self._device.upgrade().is_some() {
+            unsafe { ::ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 }
+        } else {
+            false
+        }
     }
 
     /// Lock the surface's current front buffer
@@ -87,46 +104,50 @@ impl<'a, T: 'static> Surface<'a, T> {
     /// error.
     ///
     /// If an error occurs a `FrontBufferError` is returned.
-    pub fn lock_front_buffer(&'a self) -> Result<SurfaceBufferHandle<'a, T>, FrontBufferError> {
-        if unsafe { ::ffi::gbm_surface_has_free_buffers(self.ffi) != 0 } {
-            let buffer_ptr = unsafe { ::ffi::gbm_surface_lock_front_buffer(self.ffi) };
-            if !buffer_ptr.is_null() {
-                let buffer = unsafe { BufferObject::from_raw(buffer_ptr) };
-                Ok(SurfaceBufferHandle(self, Some(buffer)))
+    pub fn lock_front_buffer(&self) -> Result<SurfaceBufferHandle<T>, FrontBufferError> {
+        if self._device.upgrade().is_some() {
+            if unsafe { ::ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 } {
+                let buffer_ptr = unsafe { ::ffi::gbm_surface_lock_front_buffer(*self.ffi) };
+                if !buffer_ptr.is_null() {
+                    let buffer = unsafe { BufferObject::new(buffer_ptr, self._device.clone()) };
+                    Ok(SurfaceBufferHandle(Rc::downgrade(&self.ffi), Some(buffer)))
+                } else {
+                    Err(FrontBufferError::Unknown)
+                }
             } else {
-                Err(FrontBufferError::Unknown)
+                Err(FrontBufferError::NoFreeBuffers)
             }
         } else {
-            Err(FrontBufferError::NoFreeBuffers)
+            Err(FrontBufferError::Destroyed(DeviceDestroyedError))
         }
     }
-}
 
-impl<'a, T: 'static> AsRaw<::ffi::gbm_surface> for Surface<'a, T> {
-    fn as_raw(&self) -> *const ::ffi::gbm_surface {
-        self.ffi
-    }
-}
-
-impl<'a, T: 'static> FromRaw<::ffi::gbm_surface> for Surface<'a, T> {
-    unsafe fn from_raw(ffi: *mut ::ffi::gbm_surface) -> Self {
+    pub(crate) unsafe fn new(ffi: *mut ::ffi::gbm_surface, device: Weak<*mut ::ffi::gbm_device>) -> Surface<T> {
         Surface {
-            ffi: ffi,
-            _lifetime: PhantomData,
+            ffi: Rc::new(ffi),
+            _device: device,
             _bo_userdata: PhantomData,
         }
     }
 }
 
-impl<'a, T: 'static> Drop for Surface<'a, T> {
+impl<T: 'static> AsRaw<::ffi::gbm_surface> for Surface<T> {
+    fn as_raw(&self) -> *const ::ffi::gbm_surface {
+        *self.ffi
+    }
+}
+
+impl<T: 'static> Drop for Surface<T> {
     fn drop(&mut self) {
-        while self.has_free_buffers() {
-            if let Ok(mut buffer) = self.lock_front_buffer() {
-                buffer.take_userdata();
-            } else {
-                break;
+        if self._device.upgrade().is_some() {
+            while self.has_free_buffers() {
+                if let Ok(mut buffer) = self.lock_front_buffer() {
+                    buffer.take_userdata().unwrap();
+                } else {
+                    break;
+                }
             }
+            unsafe { ::ffi::gbm_surface_destroy(*self.ffi) }
         }
-        unsafe { ::ffi::gbm_surface_destroy(self.ffi) }
     }
 }

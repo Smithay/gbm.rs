@@ -1,21 +1,22 @@
-
-
-use {AsRaw, Format, FromRaw};
+use {AsRaw, Device, DeviceDestroyedError, Format};
 
 #[cfg(feature = "drm-support")]
 use drm::buffer::{Buffer as DrmBuffer, Id as DrmId, PixelFormat as DrmPixelFormat};
 
+use std::error;
+use std::fmt;
 use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::os::unix::io::{AsRawFd, RawFd};
+use std::rc::Weak;
 use std::ptr;
 use std::slice;
 
 /// A gbm buffer object
-pub struct BufferObject<'a, T: 'static> {
+pub struct BufferObject<T: 'static> {
     ffi: *mut ::ffi::gbm_bo,
-    _lifetime: PhantomData<&'a ()>,
+    pub(crate) _device: Weak<*mut ::ffi::gbm_device>,
     _userdata: PhantomData<T>,
 }
 
@@ -44,143 +45,88 @@ bitflags! {
 /// Abstraction representing the handle to a buffer allocated by the manager
 pub type BufferObjectHandle = ::ffi::gbm_bo_handle;
 
-/// Common functionality for all mapped buffer objects
-pub trait ReadableMappedBufferObject<'a> {
+enum BORef<'a, T: 'static> {
+    Ref(&'a BufferObject<T>),
+    Mut(&'a mut BufferObject<T>),
+}
+
+/// A mapped buffer object
+pub struct MappedBufferObject<'a, T: 'static> {
+    bo: BORef<'a, T>,
+    addr: *mut ::libc::c_void,
+    buffer: &'a mut [u8],
+    stride: u32,
+    height: u32,
+    width: u32,
+    x: u32,
+    y: u32,
+}
+
+impl<'a, T: 'static> MappedBufferObject<'a, T> {
     /// Get the stride of the buffer object
     ///
     /// This is calculated by the backend when it does the allocation of the buffer.
-    fn stride(&self) -> u32;
-    /// The X (top left origin) starting position of the mapped region for the buffer
-    fn x(&self) -> u32;
-    /// The Y (top left origin) starting position of the mapped region for the buffer
-    fn y(&self) -> u32;
+    pub fn stride(&self) -> u32 {
+        self.stride
+    }
+
     /// The height of the mapped region for the buffer
-    fn height(&self) -> u32;
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
     /// The width of the mapped region for the buffer
-    fn width(&self) -> u32;
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    /// The X (top left origin) starting position of the mapped region for the buffer
+    pub fn x(&self) -> u32 {
+        self.x
+    }
+
+    /// The Y (top left origin) starting position of the mapped region for the buffer
+    pub fn y(&self) -> u32 {
+        self.y
+    }
+
     /// Access to the underlying image buffer
-    fn buffer(&'a self) -> &'a [u8];
-}
+    pub fn buffer(&'a self) -> &'a [u8] {
+        self.buffer
+    }
 
-/// Common functionality for all writable mapped buffer objects
-pub trait WritableMappedBufferObject<'a>: ReadableMappedBufferObject<'a> {
     /// Mutable access to the underlying image buffer
-    fn buffer_mut(&'a mut self) -> &'a mut [u8];
-}
-
-/// A read-only mapped buffer object
-pub struct MappedBufferObject<'a, T: 'static> {
-    bo: &'a BufferObject<'a, T>,
-    addr: *mut ::libc::c_void,
-    buffer: &'a mut [u8],
-    stride: u32,
-    height: u32,
-    width: u32,
-    x: u32,
-    y: u32,
-}
-
-/// A read-write mapped buffer object
-pub struct MappedBufferObjectRW<'a, T: 'static> {
-    bo: &'a mut BufferObject<'a, T>,
-    addr: *mut ::libc::c_void,
-    buffer: &'a mut [u8],
-    stride: u32,
-    height: u32,
-    width: u32,
-    x: u32,
-    y: u32,
+    pub fn buffer_mut(&'a mut self) -> &'a mut [u8] {
+        self.buffer
+    }
 }
 
 impl<'a, T: 'static> Deref for MappedBufferObject<'a, T> {
-    type Target = BufferObject<'a, T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.bo
+    type Target = BufferObject<T>;
+    fn deref(&self) -> &BufferObject<T> {
+        match &self.bo {
+            &BORef::Ref(bo) => bo,
+            &BORef::Mut(ref bo) => bo,
+        }
     }
 }
 
-impl<'a, T: 'static> Deref for MappedBufferObjectRW<'a, T> {
-    type Target = BufferObject<'a, T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.bo
-    }
-}
-
-impl<'a, T: 'static> DerefMut for MappedBufferObjectRW<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.bo
-    }
-}
-
-impl<'a, T: 'static> ReadableMappedBufferObject<'a> for MappedBufferObject<'a, T> {
-    fn stride(&self) -> u32 {
-        self.stride
-    }
-
-    fn height(&self) -> u32 {
-        self.height
-    }
-
-    fn width(&self) -> u32 {
-        self.width
-    }
-
-    fn x(&self) -> u32 {
-        self.x
-    }
-
-    fn y(&self) -> u32 {
-        self.y
-    }
-
-    fn buffer(&'a self) -> &'a [u8] {
-        self.buffer
-    }
-}
-
-impl<'a, T: 'static> ReadableMappedBufferObject<'a> for MappedBufferObjectRW<'a, T> {
-    fn stride(&self) -> u32 {
-        self.stride
-    }
-
-    fn height(&self) -> u32 {
-        self.height
-    }
-
-    fn width(&self) -> u32 {
-        self.width
-    }
-
-    fn x(&self) -> u32 {
-        self.x
-    }
-
-    fn y(&self) -> u32 {
-        self.y
-    }
-
-    fn buffer(&'a self) -> &'a [u8] {
-        self.buffer
-    }
-}
-
-impl<'a, T: 'static> WritableMappedBufferObject<'a> for MappedBufferObjectRW<'a, T> {
-    fn buffer_mut(&'a mut self) -> &'a mut [u8] {
-        self.buffer
+impl<'a, T: 'static> DerefMut for MappedBufferObject<'a, T> {
+    fn deref_mut(&mut self) -> &mut BufferObject<T> {
+        match &mut self.bo {
+            &mut BORef::Ref(_) => unreachable!(),
+            &mut BORef::Mut(ref mut bo) => bo,
+        }
     }
 }
 
 impl<'a, T: 'static> Drop for MappedBufferObject<'a, T> {
     fn drop(&mut self) {
-        unsafe { ::ffi::gbm_bo_unmap(self.bo.ffi, self.addr) }
-    }
-}
-
-impl<'a, T: 'static> Drop for MappedBufferObjectRW<'a, T> {
-    fn drop(&mut self) {
-        unsafe { ::ffi::gbm_bo_unmap(self.bo.ffi, self.addr) }
+        let ffi = match &self.bo {
+            &BORef::Ref(bo) => bo.ffi,
+            &BORef::Mut(ref bo) => bo.ffi,
+        };
+        unsafe { ::ffi::gbm_bo_unmap(ffi, self.addr) }
     }
 }
 
@@ -191,40 +137,72 @@ unsafe extern "C" fn destroy<T: 'static>(_: *mut ::ffi::gbm_bo, ptr: *mut ::libc
     }
 }
 
-impl<'a, T: 'static> BufferObject<'a, T> {
+impl<T: 'static> BufferObject<T> {
     /// Get the width of the buffer object
-    pub fn width(&self) -> u32 {
-        unsafe { ::ffi::gbm_bo_get_width(self.ffi) }
+    pub fn width(&self) -> Result<u32, DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_width(self.ffi) })
+        } else {
+            Err(DeviceDestroyedError)
+        }
     }
 
     /// Get the height of the buffer object
-    pub fn height(&self) -> u32 {
-        unsafe { ::ffi::gbm_bo_get_height(self.ffi) }
+    pub fn height(&self) -> Result<u32, DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_height(self.ffi) })
+        } else {
+            Err(DeviceDestroyedError)
+        }
     }
 
     /// Get the stride of the buffer object
-    pub fn stride(&self) -> u32 {
-        unsafe { ::ffi::gbm_bo_get_stride(self.ffi) }
+    pub fn stride(&self) -> Result<u32, DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_stride(self.ffi) })
+        } else {
+            Err(DeviceDestroyedError)
+        }
     }
 
     /// Get the format of the buffer object
-    pub fn format(&self) -> Format {
-        Format::from_ffi(unsafe { ::ffi::gbm_bo_get_format(self.ffi) })
-            .expect("libgbm returned invalid buffer format")
+    pub fn format(&self) -> Result<Format, DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            Ok(Format::from_ffi(unsafe { ::ffi::gbm_bo_get_format(self.ffi) })
+            .expect("libgbm returned invalid buffer format"))
+        } else {
+            Err(DeviceDestroyedError)
+        }
     }
 
     /// Get the handle of the buffer object
     ///
     /// This is stored in the platform generic union `BufferObjectHandle` type. However
     /// the format of this handle is platform specific.
-    pub fn handle(&self) -> BufferObjectHandle {
-        unsafe { ::ffi::gbm_bo_get_handle(self.ffi) }
+    pub fn handle(&self) -> Result<BufferObjectHandle, DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_handle(self.ffi) })
+        } else {
+            Err(DeviceDestroyedError)
+        }
     }
 
     /// Map a region of a gbm buffer object for cpu access
     ///
     /// This function maps a region of a gbm bo for cpu read access.
-    pub fn map(&'a self, x: u32, y: u32, width: u32, height: u32) -> IoResult<MappedBufferObject<'a, T>> {
+    pub fn map<'a, D, F, S>(&'a self, device: &Device<D>, x: u32, y: u32, width: u32, height: u32, f: F) -> Result<IoResult<S>, WrongDeviceError>
+        where
+            D: AsRawFd + 'static,
+            F: FnOnce(&MappedBufferObject<'a, T>) -> S,
+    {
+        if let Some(_device) = self._device.upgrade() {
+            if *_device != device.as_raw_mut() { // not matching
+                return Err(WrongDeviceError);
+            }
+        } else { // not matching
+            return Err(WrongDeviceError);
+        }
+
         unsafe {
             let mut buffer: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
@@ -240,21 +218,21 @@ impl<'a, T: 'static> BufferObject<'a, T> {
             );
 
             if ptr.is_null() {
-                Err(IoError::last_os_error())
+                Ok(Err(IoError::last_os_error()))
             } else {
-                Ok(MappedBufferObject {
-                    bo: self,
+                Ok(Ok(f(&MappedBufferObject {
+                    bo: BORef::Ref(self),
                     addr: ptr,
                     buffer: slice::from_raw_parts_mut(
                         buffer as *mut _,
                         ((height * stride + height * width) * 4) as usize,
                     ),
-                    stride: stride,
-                    height: height,
-                    width: width,
-                    x: x,
-                    y: y,
-                })
+                    stride,
+                    height,
+                    width,
+                    x,
+                    y,
+                })))
             }
         }
     }
@@ -262,13 +240,27 @@ impl<'a, T: 'static> BufferObject<'a, T> {
     /// Map a region of a gbm buffer object for cpu access
     ///
     /// This function maps a region of a gbm bo for cpu read/write access.
-    pub fn map_mut(
+    pub fn map_mut<'a, D, F, S>(
         &'a mut self,
+        device: &Device<D>,
         x: u32,
         y: u32,
         width: u32,
         height: u32,
-    ) -> IoResult<MappedBufferObjectRW<'a, T>> {
+        f: F,
+    ) -> Result<IoResult<S>, WrongDeviceError>
+        where
+            D: AsRawFd + 'static,
+            F: FnOnce(&mut MappedBufferObject<'a, T>) -> S,
+    {
+        if let Some(_device) = self._device.upgrade() {
+            if *_device != device.as_raw_mut() { // not matching
+                return Err(WrongDeviceError);
+            }
+        } else { // not matching
+            return Err(WrongDeviceError);
+        }
+
         unsafe {
             let mut buffer: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
@@ -284,21 +276,21 @@ impl<'a, T: 'static> BufferObject<'a, T> {
             );
 
             if ptr.is_null() {
-                Err(IoError::last_os_error())
+                Ok(Err(IoError::last_os_error()))
             } else {
-                Ok(MappedBufferObjectRW {
-                    bo: self,
+                Ok(Ok(f(&mut MappedBufferObject {
+                    bo: BORef::Mut(self),
                     addr: ptr,
                     buffer: slice::from_raw_parts_mut(
                         buffer as *mut _,
                         ((height * stride + height * width) * 4) as usize,
                     ),
-                    stride: stride,
-                    height: height,
-                    width: width,
-                    x: x,
-                    y: y,
-                })
+                    stride,
+                    height,
+                    width,
+                    x,
+                    y,
+                })))
             }
         }
     }
@@ -310,117 +302,161 @@ impl<'a, T: 'static> BufferObject<'a, T> {
     /// data is copied directly into the object and it's the responsibility
     /// of the caller to make sure the data represents valid pixel data,
     /// according to the width, height, stride and format of the buffer object.
-    pub fn write(&mut self, buffer: &[u8]) -> IoResult<()> {
-        let result = unsafe { ::ffi::gbm_bo_write(self.ffi, buffer.as_ptr() as *const _, buffer.len()) };
-        if result != 0 {
-            Err(IoError::last_os_error())
+    pub fn write(&mut self, buffer: &[u8]) -> Result<IoResult<()>, DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            let result = unsafe { ::ffi::gbm_bo_write(self.ffi, buffer.as_ptr() as *const _, buffer.len()) };
+            if result != 0 {
+                Ok(Err(IoError::last_os_error()))
+            } else {
+                Ok(Ok(()))
+            }
         } else {
-            Ok(())
+            Err(DeviceDestroyedError)
         }
     }
 
     /// Sets the userdata of the buffer object.
     ///
     /// If previously userdata was set, it is returned.
-    pub fn set_userdata(&mut self, userdata: T) -> Option<T> {
-        let old = self.take_userdata();
+    pub fn set_userdata(&mut self, userdata: T) -> Result<Option<T>, DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            let old = self.take_userdata();
 
-        let boxed = Box::new(userdata);
-        unsafe {
-            ::ffi::gbm_bo_set_user_data(self.ffi, Box::into_raw(boxed) as *mut _, Some(destroy::<T>));
+            let boxed = Box::new(userdata);
+            unsafe {
+                ::ffi::gbm_bo_set_user_data(self.ffi, Box::into_raw(boxed) as *mut _, Some(destroy::<T>));
+            }
+
+            old
+        } else {
+            Err(DeviceDestroyedError)
         }
-
-        old
     }
 
     /// Clears the set userdata of the buffer object.
-    pub fn clear_userdata(&mut self) {
-        let _ = self.take_userdata();
+    pub fn clear_userdata(&mut self) -> Result<(), DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            let _ = self.take_userdata();
+            Ok(())
+        } else {
+            Err(DeviceDestroyedError)
+        }
     }
 
     /// Returns a reference to set userdata, if any.
-    pub fn userdata(&self) -> Option<&T> {
-        let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
+    pub fn userdata(&self) -> Result<Option<&T>, DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
 
-        if raw.is_null() {
-            None
+            if raw.is_null() {
+                Ok(None)
+            } else {
+                unsafe { Ok(Some(&*(raw as *mut T))) }
+            }
         } else {
-            unsafe { Some(&*(raw as *mut T)) }
+            Err(DeviceDestroyedError)
         }
     }
 
     /// Returns a mutable reference to set userdata, if any.
-    pub fn userdata_mut(&mut self) -> Option<&mut T> {
-        let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
+    pub fn userdata_mut(&mut self) -> Result<Option<&mut T>, DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
 
-        if raw.is_null() {
-            None
+            if raw.is_null() {
+                Ok(None)
+            } else {
+                unsafe { Ok(Some(&mut *(raw as *mut T))) }
+            }
         } else {
-            unsafe { Some(&mut *(raw as *mut T)) }
+            Err(DeviceDestroyedError)
         }
     }
 
     /// Takes ownership of previously set userdata, if any.
     ///
     /// This removes the userdata from the buffer object.
-    pub fn take_userdata(&mut self) -> Option<T> {
-        let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
+    pub fn take_userdata(&mut self) -> Result<Option<T>, DeviceDestroyedError> {
+        if self._device.upgrade().is_some() {
+            let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
 
-        if raw.is_null() {
-            None
-        } else {
-            unsafe {
-                let boxed = Box::from_raw(raw as *mut T);
-                ::ffi::gbm_bo_set_user_data(self.ffi, ptr::null_mut(), None);
-                Some(*boxed)
+            if raw.is_null() {
+                Ok(None)
+            } else {
+                unsafe {
+                    let boxed = Box::from_raw(raw as *mut T);
+                    ::ffi::gbm_bo_set_user_data(self.ffi, ptr::null_mut(), None);
+                    Ok(Some(*boxed))
+                }
             }
+        } else {
+            Err(DeviceDestroyedError)
         }
     }
-}
 
-impl<'a, T: 'static> AsRawFd for BufferObject<'a, T> {
-    fn as_raw_fd(&self) -> RawFd {
-        unsafe { ::ffi::gbm_bo_get_fd(self.ffi) }
-    }
-}
-
-impl<'a, T: 'static> AsRaw<::ffi::gbm_bo> for BufferObject<'a, T> {
-    fn as_raw(&self) -> *const ::ffi::gbm_bo {
-        self.ffi
-    }
-}
-
-impl<'a, T: 'static> FromRaw<::ffi::gbm_bo> for BufferObject<'a, T> {
-    unsafe fn from_raw(ffi: *mut ::ffi::gbm_bo) -> Self {
+    pub(crate) unsafe fn new(ffi: *mut ::ffi::gbm_bo, device: Weak<*mut ::ffi::gbm_device>) -> BufferObject<T> {
         BufferObject {
-            ffi: ffi,
-            _lifetime: PhantomData,
+            ffi,
+            _device: device,
             _userdata: PhantomData,
         }
     }
 }
 
-impl<'a, T: 'static> Drop for BufferObject<'a, T> {
+impl<T: 'static> AsRawFd for BufferObject<T> {
+    fn as_raw_fd(&self) -> RawFd {
+        unsafe { ::ffi::gbm_bo_get_fd(self.ffi) }
+    }
+}
+
+impl<T: 'static> AsRaw<::ffi::gbm_bo> for BufferObject<T> {
+    fn as_raw(&self) -> *const ::ffi::gbm_bo {
+        self.ffi
+    }
+}
+
+impl<T: 'static> Drop for BufferObject<T> {
     fn drop(&mut self) {
-        unsafe { ::ffi::gbm_bo_destroy(self.ffi) }
+        if self._device.upgrade().is_some() {
+            unsafe { ::ffi::gbm_bo_destroy(self.ffi) }
+        }
     }
 }
 
 #[cfg(feature = "drm-support")]
-impl<'a, T: 'static> DrmBuffer for BufferObject<'a, T> {
+impl<T: 'static> DrmBuffer for BufferObject<T> {
     fn size(&self) -> (u32, u32) {
-        (self.width(), self.height())
+        (self.width().expect("GbmDevice does not exist anymore"), self.height().expect("GbmDevice does not exist anymore"))
     }
 
     fn format(&self) -> DrmPixelFormat {
-        DrmPixelFormat::from_raw(self.format().as_ffi()).unwrap()
+        DrmPixelFormat::from_raw(self.format().expect("GbmDevice does not exist anymore").as_ffi()).unwrap()
     }
 
     fn pitch(&self) -> u32 {
-        self.stride()
+        self.stride().expect("GbmDevice does not exist anymore")
     }
 
     fn handle(&self) -> DrmId {
-        unsafe { DrmId::from_raw(*self.handle().u32.as_ref()) }
+        unsafe { DrmId::from_raw(*self.handle().expect("GbmDevice does not exist anymore").u32.as_ref()) }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Thrown when the gbm device does not belong to the buffer object
+pub struct WrongDeviceError;
+
+impl fmt::Display for WrongDeviceError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use std::error::Error;
+        write!(f, "{}", self.description())
+    }
+}
+
+impl error::Error for WrongDeviceError {
+    fn description(&self) -> &str {
+        "The gbm specified is not the one this buffer object belongs to"
+    }
+
+    fn cause(&self) -> Option<&error::Error> { None }
 }
