@@ -48,7 +48,7 @@
 //! let drm = init_drm_device();
 //!
 //! // init a gbm device
-//! let gbm = Device::new_from_drm(&drm).unwrap();
+//! let gbm = Device::new(drm).unwrap();
 //!
 //! // create a 4x4 buffer
 //! let mut bo = gbm.create_buffer_object::<()>(
@@ -70,16 +70,16 @@
 //! bo.write(&buffer).unwrap();
 //!
 //! // create a framebuffer from our buffer
-//! let fb_info = framebuffer::create(&drm, &bo).unwrap();
+//! let fb_info = framebuffer::create(&gbm, &bo).unwrap();
 //!
-//! # let res_handles = drm.resource_handles().unwrap();
+//! # let res_handles = gbm.resource_handles().unwrap();
 //! # let con = *res_handles.connectors().iter().next().unwrap();
 //! # let crtc_handle = *res_handles.crtcs().iter().next().unwrap();
-//! # let connector_info: ConnectorInfo = drm.resource_info(con).unwrap();
+//! # let connector_info: ConnectorInfo = gbm.resource_info(con).unwrap();
 //! # let mode: Mode = connector_info.modes()[0];
 //! #
 //! // display it (and get a crtc, mode and connector before)
-//! crtc::set(&drm, crtc_handle, fb_info.handle(), &[con], (0, 0), Some(mode)).unwrap();
+//! crtc::set(&gbm, crtc_handle, fb_info.handle(), &[con], (0, 0), Some(mode)).unwrap();
 //! # }
 //! ```
 

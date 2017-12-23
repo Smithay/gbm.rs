@@ -30,7 +30,7 @@ use gbm::{Device, Format, BufferObjectFlags};
 let drm = init_drm_device();
 
 // init a gbm device
-let gbm = Device::new_from_drm(&drm).unwrap();
+let gbm = Device::new(drm).unwrap();
 
 // create a buffer
 let mut bo = gbm.create_buffer_object::<()>(
@@ -54,8 +54,8 @@ let buffer = {
 bo.write(&buffer).unwrap();
 
 // create a framebuffer from our buffer
-let fb_info = framebuffer::create(&drm, &bo).unwrap();
+let fb_info = framebuffer::create(&gbm, &bo).unwrap();
 
 // display it (and get a crtc, mode and connector before)
-crtc::set(&drm, crtc_handle, fb_info.handle(), &[con], (0, 0), Some(mode)).unwrap();
+crtc::set(&gbm, crtc_handle, fb_info.handle(), &[con], (0, 0), Some(mode)).unwrap();
 ```
