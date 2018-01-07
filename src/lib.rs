@@ -48,7 +48,7 @@
 //! let drm = init_drm_device();
 //!
 //! // init a gbm device
-//! let gbm = Device::new_from_drm(&drm).unwrap();
+//! let gbm = Device::new(drm).unwrap();
 //!
 //! // create a 4x4 buffer
 //! let mut bo = gbm.create_buffer_object::<()>(
@@ -70,16 +70,16 @@
 //! bo.write(&buffer).unwrap();
 //!
 //! // create a framebuffer from our buffer
-//! let fb_info = framebuffer::create(&drm, &bo).unwrap();
+//! let fb_info = framebuffer::create(&gbm, &bo).unwrap();
 //!
-//! # let res_handles = drm.resource_handles().unwrap();
+//! # let res_handles = gbm.resource_handles().unwrap();
 //! # let con = *res_handles.connectors().iter().next().unwrap();
 //! # let crtc_handle = *res_handles.crtcs().iter().next().unwrap();
-//! # let connector_info: ConnectorInfo = drm.resource_info(con).unwrap();
+//! # let connector_info: ConnectorInfo = gbm.resource_info(con).unwrap();
 //! # let mode: Mode = connector_info.modes()[0];
 //! #
 //! // display it (and get a crtc, mode and connector before)
-//! crtc::set(&drm, crtc_handle, fb_info.handle(), &[con], (0, 0), Some(mode)).unwrap();
+//! crtc::set(&gbm, crtc_handle, fb_info.handle(), &[con], (0, 0), Some(mode)).unwrap();
 //! # }
 //! ```
 
@@ -90,9 +90,6 @@ extern crate libc;
 
 #[cfg(feature = "import-wayland")]
 extern crate wayland_server;
-
-#[cfg(feature = "import-egl")]
-extern crate egli;
 
 #[cfg(feature = "drm-support")]
 extern crate drm;
@@ -117,28 +114,6 @@ pub trait AsRaw<T> {
     fn as_raw_mut(&self) -> *mut T {
         self.as_raw() as *mut _
     }
-}
-
-/// Trait for types that allow to be initialized from a raw pointer
-pub trait FromRaw<T> {
-    /// Create a new instance of this type from a raw pointer.
-    ///
-    /// ## Warning
-    ///
-    /// If you make use of [`Userdata`](./trait.Userdata.html) make sure you use the correct types
-    /// to allow receiving the set userdata. When dealing with raw pointers initialized by other
-    /// libraries this must be done extra carefully to select a correct representation.
-    ///
-    /// If unsure using `()` is always a safe option.
-    ///
-    /// ## Unsafety
-    ///
-    /// If the pointer is pointing to a different struct, invalid memory or `NULL` the returned
-    /// struct may panic on use or cause other undefined behavior.
-    ///
-    /// Effectively cloning objects by using `as_raw` and `from_raw` is also unsafe as
-    /// a double free may occur.
-    unsafe fn from_raw(*mut T) -> Self;
 }
 
 /// Possible pixel formats used
