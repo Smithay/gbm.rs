@@ -1,3 +1,6 @@
+## 0.5.0
+
+- Make `Surface::lock_front_buffer` unsafe as it may cause segfaults
 
 ## 0.4.0
 
