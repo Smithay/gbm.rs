@@ -98,18 +98,18 @@ impl<T: 'static> Surface<T> {
     /// Locks rendering to the surface's current front buffer and returns
     /// a handle to the underlying `BufferObject`
     ///
-    /// This function must be called exactly once after calling
+    /// If an error occurs a `FrontBufferError` is returned.
+    ///
+    /// **Unsafety**: This function must be called exactly once after calling
     /// `eglSwapBuffers`.  Calling it before any `eglSwapBuffer` has happened
     /// on the surface or two or more times after `eglSwapBuffers` is an
-    /// error.
-    ///
-    /// If an error occurs a `FrontBufferError` is returned.
-    pub fn lock_front_buffer(&self) -> Result<SurfaceBufferHandle<T>, FrontBufferError> {
+    /// error and may cause undefined behavior.
+    pub unsafe fn lock_front_buffer(&self) -> Result<SurfaceBufferHandle<T>, FrontBufferError> {
         if self._device.upgrade().is_some() {
-            if unsafe { ::ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 } {
-                let buffer_ptr = unsafe { ::ffi::gbm_surface_lock_front_buffer(*self.ffi) };
+            if ::ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 {
+                let buffer_ptr = ::ffi::gbm_surface_lock_front_buffer(*self.ffi);
                 if !buffer_ptr.is_null() {
-                    let buffer = unsafe { BufferObject::new(buffer_ptr, self._device.clone()) };
+                    let buffer = BufferObject::new(buffer_ptr, self._device.clone());
                     Ok(SurfaceBufferHandle(Rc::downgrade(&self.ffi), Some(buffer)))
                 } else {
                     Err(FrontBufferError::Unknown)
@@ -140,13 +140,6 @@ impl<T: 'static> AsRaw<::ffi::gbm_surface> for Surface<T> {
 impl<T: 'static> Drop for Surface<T> {
     fn drop(&mut self) {
         if self._device.upgrade().is_some() {
-            while self.has_free_buffers() {
-                if let Ok(mut buffer) = self.lock_front_buffer() {
-                    buffer.take_userdata().unwrap();
-                } else {
-                    break;
-                }
-            }
             unsafe { ::ffi::gbm_surface_destroy(*self.ffi) }
         }
     }
