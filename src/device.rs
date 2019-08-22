@@ -302,5 +302,5 @@ impl error::Error for DeviceDestroyedError {
         "The underlying gbm device was already destroyed"
     }
 
-    fn cause(&self) -> Option<&error::Error> { None }
+    fn cause(&self) -> Option<&dyn error::Error> { None }
 }

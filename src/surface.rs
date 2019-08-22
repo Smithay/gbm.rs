@@ -38,7 +38,7 @@ impl error::Error for FrontBufferError {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             FrontBufferError::Destroyed(ref err) => Some(err),
             _ => None,

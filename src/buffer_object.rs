@@ -464,5 +464,5 @@ impl error::Error for WrongDeviceError {
         "The gbm specified is not the one this buffer object belongs to"
     }
 
-    fn cause(&self) -> Option<&error::Error> { None }
+    fn cause(&self) -> Option<&dyn error::Error> { None }
 }
