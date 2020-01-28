@@ -12,20 +12,20 @@ exclude = [".travis.yml", ".rustfmt.toml"]
 
 [dependencies]
 gbm-sys = { version = "0.1", path = "./gbm-sys" }
-libc = "0.2"
-bitflags = "1.0.0"
-wayland-server = { version = "0.12", optional = true }
-drm = { version = "0.3", optional = true }
+libc = "0.2.66"
+bitflags = "1.2.1"
+wayland-client = { version = "0.23", optional = true }
+drm = { version = "0.3.4", optional = true }
 glutin_interface = { version = "0.1.0", path = "../glutin_interface", optional = true }
 winit_types = { version = "0.1.0", path = "../winit_types", optional = true }
 
 [dev-dependencies]
-drm = "0.3.0"
+drm = "0.3.4"
 
 [features]
 default = ["import-wayland", "import-egl", "drm-support", "glutin-support"]
 glutin-support = ["glutin_interface", "winit_types"]
-import-wayland = ["wayland-server"]
+import-wayland = ["wayland-client"]
 import-egl = []
 drm-support = ["drm"]
 gen = ["gbm-sys/gen"]
