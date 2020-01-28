@@ -10,6 +10,17 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::ops::{Deref, DerefMut};
 
+#[cfg(feature = "glutin-support")]
+use glutin_interface::{NativeDisplay, RawDisplay, Seal, NativeWindowSource, GbmWindowParts, X11WindowParts, WaylandWindowParts};
+#[cfg(feature = "glutin-support")]
+use winit_types::{dpi::PhysicalSize, error::Error};
+#[cfg(feature = "glutin-support")]
+use std::sync::Arc;
+#[cfg(feature = "glutin-support")]
+use winit_types::platform::OsError;
+#[cfg(feature = "glutin-support")]
+use std::marker::PhantomData;
+
 #[cfg(feature = "import-wayland")]
 use wayland_server::Resource;
 
@@ -284,6 +295,67 @@ impl<T: DrmDevice + AsRawFd + 'static> DrmDevice for Device<T> {}
 
 #[cfg(feature = "drm-support")]
 impl<T: DrmControlDevice + AsRawFd + 'static> DrmControlDevice for Device<T> {}
+
+#[cfg(feature = "glutin-support")]
+/// This is a horrid wrapper around [`Device`] that lets us implement Glutin's
+/// `NativeWindowSource` on `Device` while allowing [`Surface`] to be generic
+/// over `TS`.
+///
+/// [`Device`]: crate::Device
+/// [`Surface`]: crate::Surface
+pub struct DeviceWrapper<TD: AsRawFd + 'static, TS: 'static>(Device<TD>, PhantomData<TS>);
+
+#[cfg(feature = "glutin-support")]
+impl<TD: AsRawFd + 'static, TS: 'static> From<Device<TD>> for DeviceWrapper<TD, TS> {
+    fn from(d: Device<TD>) -> DeviceWrapper<TD, TS> {
+        DeviceWrapper(d, PhantomData)
+    }
+}
+
+#[cfg(feature = "glutin-support")]
+impl<TD: AsRawFd + 'static, TS: 'static> NativeWindowSource for DeviceWrapper<TD, TS> {
+    type Window = Surface<TS>;
+    type WindowBuilder = (PhysicalSize<u32>, BufferObjectFlags);
+
+    fn build_wayland(
+        &self,
+        _wb: Self::WindowBuilder,
+        _wwp: WaylandWindowParts,
+    ) -> Result<Self::Window, Error> {
+        unimplemented!("GBM does not provide Wayland support")
+    }
+
+    fn build_x11(
+        &self,
+        _wb: Self::WindowBuilder,
+        _xwp: X11WindowParts,
+    ) -> Result<Self::Window, Error> {
+        unimplemented!("GBM does not provide X11 support")
+    }
+
+    fn build_gbm(
+        &self,
+        wb: Self::WindowBuilder,
+        gbmwp: GbmWindowParts,
+    ) -> Result<Self::Window, Error> {
+        self.0.create_surface(
+            wb.0.width,
+            wb.0.height,
+            Format::from_ffi(gbmwp.color_format).unwrap(),
+            wb.1 | BufferObjectFlags::RENDERING,
+        ).map_err(|err| make_oserror!(OsError::IoError(Arc::new(err))))
+    }
+}
+
+#[cfg(feature = "glutin-support")]
+impl<T: AsRawFd + 'static> NativeDisplay for Device<T> {
+    fn raw_display(&self) -> RawDisplay {
+        RawDisplay::Gbm {
+            gbm_device: Some(*self.ffi as *mut _),
+            _non_exhaustive_do_not_use: Seal,
+        }
+    }
+}
 
 impl<T: AsRawFd + 'static> Drop for Device<T> {
     fn drop(&mut self) {

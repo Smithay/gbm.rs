@@ -13,6 +13,31 @@ pub struct Surface<T: 'static> {
     _bo_userdata: PhantomData<T>,
 }
 
+#[cfg(feature = "glutin-support")]
+use glutin_interface::{NativeWindow, RawWindow, Seal};
+
+#[cfg(feature = "glutin-support")]
+use winit_types::dpi::PhysicalSize;
+
+#[cfg(feature = "glutin-support")]
+impl<T: 'static> NativeWindow for Surface<T> {
+    fn raw_window(&self) -> RawWindow {
+        RawWindow::Gbm {
+            gbm_surface: *self.ffi as *mut _,
+            _non_exhaustive_do_not_use: Seal,
+        }
+    }
+
+    fn size(&self) -> PhysicalSize<u32> {
+        // Glutin doesn't need this for this platform, so whatever
+        unimplemented!()
+    }
+
+    fn scale_factor(&self) -> f64 {
+        1.0
+    }
+}
+
 /// Handle to a front buffer of a surface
 pub struct SurfaceBufferHandle<T: 'static>(Weak<*mut ::ffi::gbm_surface>, Option<BufferObject<T>>);
 

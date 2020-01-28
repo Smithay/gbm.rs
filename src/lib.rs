@@ -94,6 +94,13 @@ extern crate wayland_server;
 #[cfg(feature = "drm-support")]
 extern crate drm;
 
+#[cfg(feature = "glutin-support")]
+extern crate glutin_interface;
+
+#[cfg(feature = "glutin-support")]
+#[macro_use]
+extern crate winit_types;
+
 #[macro_use]
 extern crate bitflags;
 
