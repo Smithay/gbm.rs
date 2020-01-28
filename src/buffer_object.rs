@@ -448,15 +448,8 @@ pub struct WrongDeviceError;
 
 impl fmt::Display for WrongDeviceError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use std::error::Error;
-        write!(f, "{}", self.description())
+        write!(f, "The gbm specified is not the one this buffer object belongs to")
     }
 }
 
-impl error::Error for WrongDeviceError {
-    fn description(&self) -> &str {
-        "The gbm specified is not the one this buffer object belongs to"
-    }
-
-    fn cause(&self) -> Option<&error::Error> { None }
-}
+impl error::Error for WrongDeviceError {}
