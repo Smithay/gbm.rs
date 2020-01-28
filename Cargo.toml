@@ -16,12 +16,14 @@ libc = "0.2"
 bitflags = "1.0.0"
 wayland-server = { version = "0.12", optional = true }
 drm = { version = "0.3", optional = true }
+glutin_interface = { version = "0.1.0", path = "../glutin_interface", optional = true }
 
 [dev-dependencies]
 drm = "0.3.0"
 
 [features]
-default = ["import-wayland", "import-egl", "drm-support"]
+default = ["import-wayland", "import-egl", "drm-support", "glutin-support"]
+glutin-support = ["glutin_interface"]
 import-wayland = ["wayland-server"]
 import-egl = []
 drm-support = ["drm"]
