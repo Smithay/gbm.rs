@@ -13,7 +13,7 @@ use std::ops::{Deref, DerefMut};
 #[cfg(feature = "glutin-support")]
 use glutin_interface::{NativeDisplay, RawDisplay, Seal, NativeWindowSource, GbmWindowParts, X11WindowParts, WaylandWindowParts};
 #[cfg(feature = "glutin-support")]
-use winit_types::{dpi::PhysicalSize, error::Error};
+use winit_types::{dpi::PhysicalSize, error::{Error, ErrorType}};
 #[cfg(feature = "glutin-support")]
 use std::sync::Arc;
 #[cfg(feature = "glutin-support")]
@@ -300,17 +300,17 @@ impl<T: DrmControlDevice + AsRawFd + 'static> DrmControlDevice for Device<T> {}
 ///
 /// [`Device`]: crate::Device
 /// [`Surface`]: crate::Surface
-pub struct DeviceWrapper<TD: AsRawFd + 'static, TS: 'static>(Device<TD>, PhantomData<TS>);
+pub struct DeviceGlutinWrapper<'a, TD: AsRawFd + 'static, TS: 'static>(&'a Device<TD>, PhantomData<TS>);
 
 #[cfg(feature = "glutin-support")]
-impl<TD: AsRawFd + 'static, TS: 'static> From<Device<TD>> for DeviceWrapper<TD, TS> {
-    fn from(d: Device<TD>) -> DeviceWrapper<TD, TS> {
-        DeviceWrapper(d, PhantomData)
+impl<'a, TD: AsRawFd + 'static, TS: 'static> From<&'a Device<TD>> for DeviceGlutinWrapper<'a, TD, TS> {
+    fn from(d: &Device<TD>) -> DeviceGlutinWrapper<TD, TS> {
+        DeviceGlutinWrapper(d, PhantomData)
     }
 }
 
 #[cfg(feature = "glutin-support")]
-impl<TD: AsRawFd + 'static, TS: 'static> NativeWindowSource for DeviceWrapper<TD, TS> {
+impl<'a, TD: AsRawFd + 'static, TS: 'static> NativeWindowSource for DeviceGlutinWrapper<'a, TD, TS> {
     type Window = Surface<TS>;
     type WindowBuilder = (PhysicalSize<u32>, BufferObjectFlags);
 
@@ -335,11 +335,14 @@ impl<TD: AsRawFd + 'static, TS: 'static> NativeWindowSource for DeviceWrapper<TD
         wb: Self::WindowBuilder,
         gbmwp: GbmWindowParts,
     ) -> Result<Self::Window, Error> {
+        if !wb.1.contains(BufferObjectFlags::RENDERING) {
+            return Err(make_error!(ErrorType::BadApiUsage("BufferObjectFlags::RENDERING was not present.".to_string())));
+        }
         self.0.create_surface(
             wb.0.width,
             wb.0.height,
             Format::from_ffi(gbmwp.color_format).unwrap(),
-            wb.1 | BufferObjectFlags::RENDERING,
+            wb.1,
         ).map_err(|err| make_oserror!(OsError::IoError(Arc::new(err))))
     }
 }
