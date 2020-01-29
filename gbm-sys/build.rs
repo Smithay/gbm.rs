@@ -10,8 +10,7 @@ use std::path::Path;
 fn main() {}
 
 #[cfg(feature = "gen")]
-fn main()
-{
+fn main() {
     // Setup bindings builder
     let generated = bindgen::builder()
         .header("include/gbm.h")

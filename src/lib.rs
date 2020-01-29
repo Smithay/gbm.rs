@@ -104,8 +104,8 @@ extern crate winit_types;
 #[macro_use]
 extern crate bitflags;
 
-mod device;
 mod buffer_object;
+mod device;
 mod surface;
 
 pub use self::buffer_object::*;

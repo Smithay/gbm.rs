@@ -5,33 +5,38 @@ use libc::c_void;
 use std::error;
 use std::ffi::CStr;
 use std::fmt;
-use std::rc::Rc;
 use std::io::{Error as IoError, Result as IoResult};
-use std::os::unix::io::{AsRawFd, RawFd};
 use std::ops::{Deref, DerefMut};
+use std::os::unix::io::{AsRawFd, RawFd};
+use std::rc::Rc;
 
 #[cfg(feature = "glutin-support")]
-use glutin_interface::{NativeDisplay, RawDisplay, Seal, NativeWindowSource, GbmWindowParts, X11WindowParts, WaylandWindowParts};
+use glutin_interface::{
+    GbmWindowParts, NativeDisplay, NativeWindowSource, RawDisplay, Seal, WaylandWindowParts, X11WindowParts,
+};
 #[cfg(feature = "glutin-support")]
-use winit_types::{dpi::PhysicalSize, error::{Error, ErrorType}};
+use std::marker::PhantomData;
 #[cfg(feature = "glutin-support")]
 use std::sync::Arc;
 #[cfg(feature = "glutin-support")]
 use winit_types::platform::OsError;
 #[cfg(feature = "glutin-support")]
-use std::marker::PhantomData;
+use winit_types::{
+    dpi::PhysicalSize,
+    error::{Error, ErrorType},
+};
 
 #[cfg(feature = "import-wayland")]
-use wayland_client::{Proxy, protocol::wl_buffer::WlBuffer};
+use wayland_client::{protocol::wl_buffer::WlBuffer, Proxy};
 
 #[cfg(feature = "import-egl")]
 /// An EGLImage handle
 pub type EGLImage = *mut c_void;
 
 #[cfg(feature = "drm-support")]
-use drm::Device as DrmDevice;
-#[cfg(feature = "drm-support")]
 use drm::control::Device as DrmControlDevice;
+#[cfg(feature = "drm-support")]
+use drm::Device as DrmDevice;
 
 /// Type wrapping a foreign file destructor
 pub struct FdWrapper(RawFd);
@@ -84,7 +89,6 @@ impl Device<FdWrapper> {
     ///
     /// The lifetime of the resulting device depends on the ownership of the file descriptor.
     /// Closing the file descriptor before dropping the Device will lead to undefined behavior.
-    ///
     pub unsafe fn new_from_fd(fd: RawFd) -> IoResult<Device<FdWrapper>> {
         let ptr = ::ffi::gbm_create_device(fd);
         if ptr.is_null() {
@@ -127,13 +131,7 @@ impl<T: AsRawFd + 'static> Device<T> {
 
     /// Test if a format is supported for a given set of usage flags
     pub fn is_format_supported(&self, format: Format, usage: BufferObjectFlags) -> bool {
-        unsafe {
-            ::ffi::gbm_device_is_format_supported(
-                *self.ffi,
-                format.as_ffi(),
-                usage.bits(),
-            ) != 0
-        }
+        unsafe { ::ffi::gbm_device_is_format_supported(*self.ffi, format.as_ffi(), usage.bits()) != 0 }
     }
 
     /// Allocate a new surface object
@@ -144,15 +142,8 @@ impl<T: AsRawFd + 'static> Device<T> {
         format: Format,
         usage: BufferObjectFlags,
     ) -> IoResult<Surface<U>> {
-        let ptr = unsafe {
-            ::ffi::gbm_surface_create(
-                *self.ffi,
-                width,
-                height,
-                format.as_ffi(),
-                usage.bits(),
-            )
-        };
+        let ptr =
+            unsafe { ::ffi::gbm_surface_create(*self.ffi, width, height, format.as_ffi(), usage.bits()) };
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
@@ -168,15 +159,7 @@ impl<T: AsRawFd + 'static> Device<T> {
         format: Format,
         usage: BufferObjectFlags,
     ) -> IoResult<BufferObject<U>> {
-        let ptr = unsafe {
-            ::ffi::gbm_bo_create(
-                *self.ffi,
-                width,
-                height,
-                format.as_ffi(),
-                usage.bits(),
-            )
-        };
+        let ptr = unsafe { ::ffi::gbm_bo_create(*self.ffi, width, height, format.as_ffi(), usage.bits()) };
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
@@ -232,13 +215,12 @@ impl<T: AsRawFd + 'static> Device<T> {
         buffer: EGLImage,
         usage: BufferObjectFlags,
     ) -> IoResult<BufferObject<U>> {
-        let ptr =
-            ::ffi::gbm_bo_import(
-                *self.ffi,
-                ::ffi::GBM_BO_IMPORT::EGL_IMAGE as u32,
-                buffer,
-                usage.bits(),
-            );
+        let ptr = ::ffi::gbm_bo_import(
+            *self.ffi,
+            ::ffi::GBM_BO_IMPORT::EGL_IMAGE as u32,
+            buffer,
+            usage.bits(),
+        );
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
@@ -322,28 +304,24 @@ impl<'a, TD: AsRawFd + 'static, TS: 'static> NativeWindowSource for DeviceGlutin
         unimplemented!("GBM does not provide Wayland support")
     }
 
-    fn build_x11(
-        &self,
-        _wb: Self::WindowBuilder,
-        _xwp: X11WindowParts,
-    ) -> Result<Self::Window, Error> {
+    fn build_x11(&self, _wb: Self::WindowBuilder, _xwp: X11WindowParts) -> Result<Self::Window, Error> {
         unimplemented!("GBM does not provide X11 support")
     }
 
-    fn build_gbm(
-        &self,
-        wb: Self::WindowBuilder,
-        gbmwp: GbmWindowParts,
-    ) -> Result<Self::Window, Error> {
+    fn build_gbm(&self, wb: Self::WindowBuilder, gbmwp: GbmWindowParts) -> Result<Self::Window, Error> {
         if !wb.1.contains(BufferObjectFlags::RENDERING) {
-            return Err(make_error!(ErrorType::BadApiUsage("BufferObjectFlags::RENDERING was not present.".to_string())));
+            return Err(make_error!(ErrorType::BadApiUsage(
+                "BufferObjectFlags::RENDERING was not present.".to_string()
+            )));
         }
-        self.0.create_surface(
-            wb.0.width,
-            wb.0.height,
-            Format::from_ffi(gbmwp.color_format).unwrap(),
-            wb.1,
-        ).map_err(|err| make_oserror!(OsError::IoError(Arc::new(err))))
+        self.0
+            .create_surface(
+                wb.0.width,
+                wb.0.height,
+                Format::from_ffi(gbmwp.color_format).unwrap(),
+                wb.1,
+            )
+            .map_err(|err| make_oserror!(OsError::IoError(Arc::new(err))))
     }
 }
 
