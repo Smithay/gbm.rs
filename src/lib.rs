@@ -187,7 +187,7 @@ pub enum Format {
 
 impl Format {
     #[doc(hidden)]
-    pub fn as_ffi(&self) -> u32 {
+    pub fn as_ffi(self) -> u32 {
         use Format::*;
         match *self {
             C8 => ::ffi::GBM_FORMAT_C8,
