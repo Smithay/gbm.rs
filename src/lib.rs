@@ -189,7 +189,7 @@ impl Format {
     #[doc(hidden)]
     pub fn as_ffi(self) -> u32 {
         use Format::*;
-        match *self {
+        match self {
             C8 => ::ffi::GBM_FORMAT_C8,
             R8 => ::ffi::GBM_FORMAT_R8,
             GR88 => ::ffi::GBM_FORMAT_GR88,
