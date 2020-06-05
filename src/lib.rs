@@ -105,6 +105,8 @@ pub use self::buffer_object::*;
 pub use self::device::*;
 pub use self::surface::*;
 
+use std::sync::{Arc, Weak};
+
 /// Trait for types that allow to optain the underlying raw libinput pointer.
 pub trait AsRaw<T> {
     /// Receive a raw pointer representing this type.
@@ -306,5 +308,59 @@ impl Format {
 
             _ => None,
         }
+    }
+}
+
+struct PtrDrop<T>(*mut T, Option<Box<dyn FnOnce(*mut T) + 'static>>);
+
+impl<T> Drop for PtrDrop<T> {
+    fn drop(&mut self) {
+        (self.1.take().unwrap())(self.0);
+    }
+}
+
+pub(crate) struct Ptr<T>(Arc<PtrDrop<T>>);
+
+impl<T> Ptr<T> {
+    fn new<F: FnOnce(*mut T) + 'static>(ptr: *mut T, destructor: F) -> Ptr<T> {
+        Ptr(Arc::new(PtrDrop(ptr, Some(Box::new(destructor)))))
+    }
+
+    fn downgrade(&self) -> WeakPtr<T> {
+        WeakPtr(Arc::downgrade(&self.0))
+    }
+}
+
+impl<T> std::ops::Deref for Ptr<T> {
+    type Target = *mut T;
+
+    fn deref(&self) -> &Self::Target {
+        &(self.0).0
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct WeakPtr<T>(Weak<PtrDrop<T>>);
+
+impl<T> WeakPtr<T> {
+    fn upgrade(&self) -> Option<Ptr<T>> {
+        self.0.upgrade().map(Ptr)
+    }
+}
+
+unsafe impl<T> Send for WeakPtr<T> where Ptr<T>: Send {}
+
+#[cfg(test)]
+mod test {
+    fn is_send<T: Send>() {}
+
+    #[test]
+    fn device_is_send() {
+        is_send::<super::Device<std::fs::File>>();
+    }
+
+    #[test]
+    fn surface_is_send() {
+        is_send::<super::Surface<std::fs::File>>();
     }
 }

@@ -1,4 +1,4 @@
-use {AsRaw, Device, DeviceDestroyedError, Format};
+use {AsRaw, Device, DeviceDestroyedError, Format, Ptr, WeakPtr};
 
 #[cfg(feature = "drm-support")]
 use drm::buffer::{Buffer as DrmBuffer, Id as DrmId, PixelFormat as DrmPixelFormat};
@@ -9,15 +9,14 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::os::unix::io::{AsRawFd, RawFd};
-use std::rc::Weak;
 use std::ptr;
 use std::slice;
 
 /// A gbm buffer object
 pub struct BufferObject<T: 'static> {
-    ffi: *mut ::ffi::gbm_bo,
-    pub(crate) _device: Weak<*mut ::ffi::gbm_device>,
-    _userdata: PhantomData<T>,
+    pub(crate) ffi: Ptr<ffi::gbm_bo>,
+    pub(crate) _device: WeakPtr<::ffi::gbm_device>,
+    pub(crate) _userdata: PhantomData<T>,
 }
 
 bitflags! {
@@ -123,10 +122,10 @@ impl<'a, T: 'static> DerefMut for MappedBufferObject<'a, T> {
 impl<'a, T: 'static> Drop for MappedBufferObject<'a, T> {
     fn drop(&mut self) {
         let ffi = match &self.bo {
-            &BORef::Ref(bo) => bo.ffi,
-            &BORef::Mut(ref bo) => bo.ffi,
+            &BORef::Ref(bo) => &bo.ffi,
+            &BORef::Mut(ref bo) => &bo.ffi,
         };
-        unsafe { ::ffi::gbm_bo_unmap(ffi, self.data) }
+        unsafe { ::ffi::gbm_bo_unmap(**ffi, self.data) }
     }
 }
 
@@ -140,8 +139,9 @@ unsafe extern "C" fn destroy<T: 'static>(_: *mut ::ffi::gbm_bo, ptr: *mut ::libc
 impl<T: 'static> BufferObject<T> {
     /// Get the width of the buffer object
     pub fn width(&self) -> Result<u32, DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
-            Ok(unsafe { ::ffi::gbm_bo_get_width(self.ffi) })
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_width(*self.ffi) })
         } else {
             Err(DeviceDestroyedError)
         }
@@ -149,8 +149,9 @@ impl<T: 'static> BufferObject<T> {
 
     /// Get the height of the buffer object
     pub fn height(&self) -> Result<u32, DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
-            Ok(unsafe { ::ffi::gbm_bo_get_height(self.ffi) })
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_height(*self.ffi) })
         } else {
             Err(DeviceDestroyedError)
         }
@@ -158,8 +159,9 @@ impl<T: 'static> BufferObject<T> {
 
     /// Get the stride of the buffer object
     pub fn stride(&self) -> Result<u32, DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
-            Ok(unsafe { ::ffi::gbm_bo_get_stride(self.ffi) })
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_stride(*self.ffi) })
         } else {
             Err(DeviceDestroyedError)
         }
@@ -167,8 +169,9 @@ impl<T: 'static> BufferObject<T> {
 
     /// Get the format of the buffer object
     pub fn format(&self) -> Result<Format, DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
-            Ok(Format::from_ffi(unsafe { ::ffi::gbm_bo_get_format(self.ffi) })
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(Format::from_ffi(unsafe { ::ffi::gbm_bo_get_format(*self.ffi) })
             .expect("libgbm returned invalid buffer format"))
         } else {
             Err(DeviceDestroyedError)
@@ -180,8 +183,9 @@ impl<T: 'static> BufferObject<T> {
     /// This is stored in the platform generic union `BufferObjectHandle` type. However
     /// the format of this handle is platform specific.
     pub fn handle(&self) -> Result<BufferObjectHandle, DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
-            Ok(unsafe { ::ffi::gbm_bo_get_handle(self.ffi) })
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_handle(*self.ffi) })
         } else {
             Err(DeviceDestroyedError)
         }
@@ -195,7 +199,8 @@ impl<T: 'static> BufferObject<T> {
             D: AsRawFd + 'static,
             F: FnOnce(&MappedBufferObject<'a, T>) -> S,
     {
-        if let Some(_device) = self._device.upgrade() {
+        let device_ref = self._device.upgrade();
+        if let Some(_device) = device_ref {
             if *_device != device.as_raw_mut() { // not matching
                 return Err(WrongDeviceError);
             }
@@ -207,7 +212,7 @@ impl<T: 'static> BufferObject<T> {
             let mut data: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
             let ptr = ::ffi::gbm_bo_map(
-                self.ffi,
+                *self.ffi,
                 x,
                 y,
                 width,
@@ -253,7 +258,8 @@ impl<T: 'static> BufferObject<T> {
             D: AsRawFd + 'static,
             F: FnOnce(&mut MappedBufferObject<'a, T>) -> S,
     {
-        if let Some(_device) = self._device.upgrade() {
+        let device_ref = self._device.upgrade();
+        if let Some(_device) = device_ref {
             if *_device != device.as_raw_mut() { // not matching
                 return Err(WrongDeviceError);
             }
@@ -265,7 +271,7 @@ impl<T: 'static> BufferObject<T> {
             let mut data: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
             let ptr = ::ffi::gbm_bo_map(
-                self.ffi,
+                *self.ffi,
                 x,
                 y,
                 width,
@@ -303,8 +309,9 @@ impl<T: 'static> BufferObject<T> {
     /// of the caller to make sure the data represents valid pixel data,
     /// according to the width, height, stride and format of the buffer object.
     pub fn write(&mut self, buffer: &[u8]) -> Result<IoResult<()>, DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
-            let result = unsafe { ::ffi::gbm_bo_write(self.ffi, buffer.as_ptr() as *const _, buffer.len()) };
+        let device = self._device.upgrade();
+        if device.is_some() {
+            let result = unsafe { ::ffi::gbm_bo_write(*self.ffi, buffer.as_ptr() as *const _, buffer.len()) };
             if result != 0 {
                 Ok(Err(IoError::last_os_error()))
             } else {
@@ -319,12 +326,13 @@ impl<T: 'static> BufferObject<T> {
     ///
     /// If previously userdata was set, it is returned.
     pub fn set_userdata(&mut self, userdata: T) -> Result<Option<T>, DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
+        let device = self._device.upgrade();
+        if device.is_some() {
             let old = self.take_userdata();
 
             let boxed = Box::new(userdata);
             unsafe {
-                ::ffi::gbm_bo_set_user_data(self.ffi, Box::into_raw(boxed) as *mut _, Some(destroy::<T>));
+                ::ffi::gbm_bo_set_user_data(*self.ffi, Box::into_raw(boxed) as *mut _, Some(destroy::<T>));
             }
 
             old
@@ -335,7 +343,8 @@ impl<T: 'static> BufferObject<T> {
 
     /// Clears the set userdata of the buffer object.
     pub fn clear_userdata(&mut self) -> Result<(), DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
+        let device = self._device.upgrade();
+        if device.is_some() {
             let _ = self.take_userdata();
             Ok(())
         } else {
@@ -345,8 +354,9 @@ impl<T: 'static> BufferObject<T> {
 
     /// Returns a reference to set userdata, if any.
     pub fn userdata(&self) -> Result<Option<&T>, DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
-            let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
+        let device = self._device.upgrade();
+        if device.is_some() {
+            let raw = unsafe { ::ffi::gbm_bo_get_user_data(*self.ffi) };
 
             if raw.is_null() {
                 Ok(None)
@@ -360,8 +370,9 @@ impl<T: 'static> BufferObject<T> {
 
     /// Returns a mutable reference to set userdata, if any.
     pub fn userdata_mut(&mut self) -> Result<Option<&mut T>, DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
-            let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
+        let device = self._device.upgrade();
+        if device.is_some() {
+            let raw = unsafe { ::ffi::gbm_bo_get_user_data(*self.ffi) };
 
             if raw.is_null() {
                 Ok(None)
@@ -377,15 +388,16 @@ impl<T: 'static> BufferObject<T> {
     ///
     /// This removes the userdata from the buffer object.
     pub fn take_userdata(&mut self) -> Result<Option<T>, DeviceDestroyedError> {
-        if self._device.upgrade().is_some() {
-            let raw = unsafe { ::ffi::gbm_bo_get_user_data(self.ffi) };
+        let device = self._device.upgrade();
+        if device.is_some() {
+            let raw = unsafe { ::ffi::gbm_bo_get_user_data(*self.ffi) };
 
             if raw.is_null() {
                 Ok(None)
             } else {
                 unsafe {
                     let boxed = Box::from_raw(raw as *mut T);
-                    ::ffi::gbm_bo_set_user_data(self.ffi, ptr::null_mut(), None);
+                    ::ffi::gbm_bo_set_user_data(*self.ffi, ptr::null_mut(), None);
                     Ok(Some(*boxed))
                 }
             }
@@ -394,9 +406,9 @@ impl<T: 'static> BufferObject<T> {
         }
     }
 
-    pub(crate) unsafe fn new(ffi: *mut ::ffi::gbm_bo, device: Weak<*mut ::ffi::gbm_device>) -> BufferObject<T> {
+    pub(crate) unsafe fn new(ffi: *mut ::ffi::gbm_bo, device: WeakPtr<::ffi::gbm_device>) -> BufferObject<T> {
         BufferObject {
-            ffi,
+            ffi: Ptr::<::ffi::gbm_bo>::new(ffi, |ptr| ::ffi::gbm_bo_destroy(ptr)),
             _device: device,
             _userdata: PhantomData,
         }
@@ -405,21 +417,13 @@ impl<T: 'static> BufferObject<T> {
 
 impl<T: 'static> AsRawFd for BufferObject<T> {
     fn as_raw_fd(&self) -> RawFd {
-        unsafe { ::ffi::gbm_bo_get_fd(self.ffi) }
+        unsafe { ::ffi::gbm_bo_get_fd(*self.ffi) }
     }
 }
 
 impl<T: 'static> AsRaw<::ffi::gbm_bo> for BufferObject<T> {
     fn as_raw(&self) -> *const ::ffi::gbm_bo {
-        self.ffi
-    }
-}
-
-impl<T: 'static> Drop for BufferObject<T> {
-    fn drop(&mut self) {
-        if self._device.upgrade().is_some() {
-            unsafe { ::ffi::gbm_bo_destroy(self.ffi) }
-        }
+        *self.ffi
     }
 }
 
