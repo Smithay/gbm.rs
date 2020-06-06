@@ -311,7 +311,7 @@ impl Format {
     }
 }
 
-struct PtrDrop<T>(*mut T, Option<Box<dyn FnOnce(*mut T) + 'static>>);
+struct PtrDrop<T>(*mut T, Option<Box<dyn FnOnce(*mut T) + Send + 'static>>);
 
 impl<T> Drop for PtrDrop<T> {
     fn drop(&mut self) {
@@ -322,7 +322,7 @@ impl<T> Drop for PtrDrop<T> {
 pub(crate) struct Ptr<T>(Arc<PtrDrop<T>>);
 
 impl<T> Ptr<T> {
-    fn new<F: FnOnce(*mut T) + 'static>(ptr: *mut T, destructor: F) -> Ptr<T> {
+    fn new<F: FnOnce(*mut T) + Send + 'static>(ptr: *mut T, destructor: F) -> Ptr<T> {
         Ptr(Arc::new(PtrDrop(ptr, Some(Box::new(destructor)))))
     }
 
