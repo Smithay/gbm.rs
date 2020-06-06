@@ -365,4 +365,9 @@ mod test {
         is_send::<super::Surface<std::fs::File>>();
         is_send::<super::Surface<super::FdWrapper>>();
     }
+
+    #[test]
+    fn unmapped_bo_is_send() {
+        is_send::<super::BufferObject<()>>();
+    }
 }
