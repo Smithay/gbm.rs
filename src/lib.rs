@@ -17,8 +17,8 @@
 //! extern crate drm;
 //! extern crate gbm;
 //!
-//! use drm::control::{crtc, framebuffer};
-//! # use drm::control::{Mode, ResourceInfo};
+//! use drm::control::{self, crtc, framebuffer};
+//! # use drm::control::Mode;
 //! # use drm::control::connector::Info as ConnectorInfo;
 //! use gbm::{Device, Format, BufferObjectFlags};
 //!
@@ -70,16 +70,16 @@
 //! bo.write(&buffer).unwrap();
 //!
 //! // create a framebuffer from our buffer
-//! let fb_info = framebuffer::create(&gbm, &bo).unwrap();
+//! let fb = gbm.add_framebuffer(&bo).unwrap();
 //!
 //! # let res_handles = gbm.resource_handles().unwrap();
 //! # let con = *res_handles.connectors().iter().next().unwrap();
 //! # let crtc_handle = *res_handles.crtcs().iter().next().unwrap();
-//! # let connector_info: ConnectorInfo = gbm.resource_info(con).unwrap();
+//! # let connector_info: ConnectorInfo = gbm.get_connector(con).unwrap();
 //! # let mode: Mode = connector_info.modes()[0];
 //! #
 //! // display it (and get a crtc, mode and connector before)
-//! crtc::set(&gbm, crtc_handle, fb_info.handle(), &[con], (0, 0), Some(mode)).unwrap();
+//! gbm.set_crtc(crtc_handle, Some(fb), (0, 0), &[con], Some(mode)).unwrap();
 //! # }
 //! ```
 
