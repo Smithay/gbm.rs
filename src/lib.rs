@@ -357,10 +357,12 @@ mod test {
     #[test]
     fn device_is_send() {
         is_send::<super::Device<std::fs::File>>();
+        is_send::<super::Device<super::FdWrapper>>();
     }
 
     #[test]
     fn surface_is_send() {
         is_send::<super::Surface<std::fs::File>>();
+        is_send::<super::Surface<super::FdWrapper>>();
     }
 }
