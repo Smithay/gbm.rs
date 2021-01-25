@@ -53,8 +53,8 @@ enum BORef<'a, T: 'static> {
 /// A mapped buffer object
 pub struct MappedBufferObject<'a, T: 'static> {
     bo: BORef<'a, T>,
-    addr: *mut ::libc::c_void,
     buffer: &'a mut [u8],
+    data: *mut ::libc::c_void,
     stride: u32,
     height: u32,
     width: u32,
@@ -91,12 +91,12 @@ impl<'a, T: 'static> MappedBufferObject<'a, T> {
     }
 
     /// Access to the underlying image buffer
-    pub fn buffer(&'a self) -> &'a [u8] {
+    pub fn buffer(&self) -> &[u8] {
         self.buffer
     }
 
     /// Mutable access to the underlying image buffer
-    pub fn buffer_mut(&'a mut self) -> &'a mut [u8] {
+    pub fn buffer_mut(&mut self) -> &mut [u8] {
         self.buffer
     }
 }
@@ -126,7 +126,7 @@ impl<'a, T: 'static> Drop for MappedBufferObject<'a, T> {
             &BORef::Ref(bo) => bo.ffi,
             &BORef::Mut(ref bo) => bo.ffi,
         };
-        unsafe { ::ffi::gbm_bo_unmap(ffi, self.addr) }
+        unsafe { ::ffi::gbm_bo_unmap(ffi, self.data) }
     }
 }
 
@@ -204,7 +204,7 @@ impl<T: 'static> BufferObject<T> {
         }
 
         unsafe {
-            let mut buffer: *mut ::libc::c_void = ptr::null_mut();
+            let mut data: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
             let ptr = ::ffi::gbm_bo_map(
                 self.ffi,
@@ -214,7 +214,7 @@ impl<T: 'static> BufferObject<T> {
                 height,
                 ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ as u32,
                 &mut stride as *mut _,
-                &mut buffer as *mut _,
+                &mut data as *mut _,
             );
 
             if ptr.is_null() {
@@ -222,11 +222,11 @@ impl<T: 'static> BufferObject<T> {
             } else {
                 Ok(Ok(f(&MappedBufferObject {
                     bo: BORef::Ref(self),
-                    addr: ptr,
                     buffer: slice::from_raw_parts_mut(
-                        buffer as *mut _,
-                        ((height * stride + height * width) * 4) as usize,
+                        ptr as *mut _,
+                        (height * stride) as usize,
                     ),
+                    data,
                     stride,
                     height,
                     width,
@@ -262,7 +262,7 @@ impl<T: 'static> BufferObject<T> {
         }
 
         unsafe {
-            let mut buffer: *mut ::libc::c_void = ptr::null_mut();
+            let mut data: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
             let ptr = ::ffi::gbm_bo_map(
                 self.ffi,
@@ -272,7 +272,7 @@ impl<T: 'static> BufferObject<T> {
                 height,
                 ::ffi::gbm_bo_transfer_flags::GBM_BO_TRANSFER_READ_WRITE as u32,
                 &mut stride as *mut _,
-                &mut buffer as *mut _,
+                &mut data as *mut _,
             );
 
             if ptr.is_null() {
@@ -280,11 +280,11 @@ impl<T: 'static> BufferObject<T> {
             } else {
                 Ok(Ok(f(&mut MappedBufferObject {
                     bo: BORef::Mut(self),
-                    addr: ptr,
                     buffer: slice::from_raw_parts_mut(
-                        buffer as *mut _,
-                        ((height * stride + height * width) * 4) as usize,
+                        ptr as *mut _,
+                        (height * stride) as usize,
                     ),
+                    data,
                     stride,
                     height,
                     width,
