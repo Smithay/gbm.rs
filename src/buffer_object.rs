@@ -9,8 +9,8 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::os::unix::io::{AsRawFd, RawFd};
-use std::rc::Weak;
 use std::ptr;
+use std::rc::Weak;
 use std::slice;
 
 /// A gbm buffer object
@@ -104,27 +104,27 @@ impl<'a, T: 'static> MappedBufferObject<'a, T> {
 impl<'a, T: 'static> Deref for MappedBufferObject<'a, T> {
     type Target = BufferObject<T>;
     fn deref(&self) -> &BufferObject<T> {
-        match &self.bo {
-            &BORef::Ref(bo) => bo,
-            &BORef::Mut(ref bo) => bo,
+        match self.bo {
+            BORef::Ref(bo) => bo,
+            BORef::Mut(ref bo) => bo,
         }
     }
 }
 
 impl<'a, T: 'static> DerefMut for MappedBufferObject<'a, T> {
     fn deref_mut(&mut self) -> &mut BufferObject<T> {
-        match &mut self.bo {
-            &mut BORef::Ref(_) => unreachable!(),
-            &mut BORef::Mut(ref mut bo) => bo,
+        match self.bo {
+            BORef::Ref(_) => unreachable!(),
+            BORef::Mut(ref mut bo) => bo,
         }
     }
 }
 
 impl<'a, T: 'static> Drop for MappedBufferObject<'a, T> {
     fn drop(&mut self) {
-        let ffi = match &self.bo {
-            &BORef::Ref(bo) => bo.ffi,
-            &BORef::Mut(ref bo) => bo.ffi,
+        let ffi = match self.bo {
+            BORef::Ref(bo) => bo.ffi,
+            BORef::Mut(ref bo) => bo.ffi,
         };
         unsafe { ::ffi::gbm_bo_unmap(ffi, self.data) }
     }
@@ -169,7 +169,7 @@ impl<T: 'static> BufferObject<T> {
     pub fn format(&self) -> Result<Format, DeviceDestroyedError> {
         if self._device.upgrade().is_some() {
             Ok(Format::from_ffi(unsafe { ::ffi::gbm_bo_get_format(self.ffi) })
-            .expect("libgbm returned invalid buffer format"))
+                .expect("libgbm returned invalid buffer format"))
         } else {
             Err(DeviceDestroyedError)
         }
@@ -190,16 +190,26 @@ impl<T: 'static> BufferObject<T> {
     /// Map a region of a gbm buffer object for cpu access
     ///
     /// This function maps a region of a gbm bo for cpu read access.
-    pub fn map<'a, D, F, S>(&'a self, device: &Device<D>, x: u32, y: u32, width: u32, height: u32, f: F) -> Result<IoResult<S>, WrongDeviceError>
-        where
-            D: AsRawFd + 'static,
-            F: FnOnce(&MappedBufferObject<'a, T>) -> S,
+    pub fn map<'a, D, F, S>(
+        &'a self,
+        device: &Device<D>,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        f: F,
+    ) -> Result<IoResult<S>, WrongDeviceError>
+    where
+        D: AsRawFd + 'static,
+        F: FnOnce(&MappedBufferObject<'a, T>) -> S,
     {
         if let Some(_device) = self._device.upgrade() {
-            if *_device != device.as_raw_mut() { // not matching
+            if *_device != device.as_raw_mut() {
+                // not matching
                 return Err(WrongDeviceError);
             }
-        } else { // not matching
+        } else {
+            // not matching
             return Err(WrongDeviceError);
         }
 
@@ -249,15 +259,17 @@ impl<T: 'static> BufferObject<T> {
         height: u32,
         f: F,
     ) -> Result<IoResult<S>, WrongDeviceError>
-        where
-            D: AsRawFd + 'static,
-            F: FnOnce(&mut MappedBufferObject<'a, T>) -> S,
+    where
+        D: AsRawFd + 'static,
+        F: FnOnce(&mut MappedBufferObject<'a, T>) -> S,
     {
         if let Some(_device) = self._device.upgrade() {
-            if *_device != device.as_raw_mut() { // not matching
+            if *_device != device.as_raw_mut() {
+                // not matching
                 return Err(WrongDeviceError);
             }
-        } else { // not matching
+        } else {
+            // not matching
             return Err(WrongDeviceError);
         }
 
@@ -394,7 +406,10 @@ impl<T: 'static> BufferObject<T> {
         }
     }
 
-    pub(crate) unsafe fn new(ffi: *mut ::ffi::gbm_bo, device: Weak<*mut ::ffi::gbm_device>) -> BufferObject<T> {
+    pub(crate) unsafe fn new(
+        ffi: *mut ::ffi::gbm_bo,
+        device: Weak<*mut ::ffi::gbm_device>,
+    ) -> BufferObject<T> {
         BufferObject {
             ffi,
             _device: device,
@@ -426,7 +441,10 @@ impl<T: 'static> Drop for BufferObject<T> {
 #[cfg(feature = "drm-support")]
 impl<T: 'static> DrmBuffer for BufferObject<T> {
     fn size(&self) -> (u32, u32) {
-        (self.width().expect("GbmDevice does not exist anymore"), self.height().expect("GbmDevice does not exist anymore"))
+        (
+            self.width().expect("GbmDevice does not exist anymore"),
+            self.height().expect("GbmDevice does not exist anymore"),
+        )
     }
 
     fn format(&self) -> DrmPixelFormat {
@@ -438,7 +456,15 @@ impl<T: 'static> DrmBuffer for BufferObject<T> {
     }
 
     fn handle(&self) -> DrmId {
-        unsafe { DrmId::from_raw(*self.handle().expect("GbmDevice does not exist anymore").u32.as_ref()) }
+        unsafe {
+            DrmId::from_raw(
+                *self
+                    .handle()
+                    .expect("GbmDevice does not exist anymore")
+                    .u32
+                    .as_ref(),
+            )
+        }
     }
 }
 
@@ -448,15 +474,11 @@ pub struct WrongDeviceError;
 
 impl fmt::Display for WrongDeviceError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use std::error::Error;
-        write!(f, "{}", self.description())
+        write!(
+            f,
+            "The gbm specified is not the one this buffer object belongs to"
+        )
     }
 }
 
-impl error::Error for WrongDeviceError {
-    fn description(&self) -> &str {
-        "The gbm specified is not the one this buffer object belongs to"
-    }
-
-    fn cause(&self) -> Option<&error::Error> { None }
-}
+impl error::Error for WrongDeviceError {}

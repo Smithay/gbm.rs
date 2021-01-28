@@ -89,16 +89,23 @@ extern crate gbm_sys as ffi;
 extern crate libc;
 
 #[cfg(feature = "import-wayland")]
-extern crate wayland_server;
+extern crate wayland_client;
 
 #[cfg(feature = "drm-support")]
 extern crate drm;
 
+#[cfg(feature = "glutin-support")]
+extern crate glutin_interface;
+
+#[cfg(feature = "glutin-support")]
+#[macro_use]
+extern crate winit_types;
+
 #[macro_use]
 extern crate bitflags;
 
-mod device;
 mod buffer_object;
+mod device;
 mod surface;
 
 pub use self::buffer_object::*;
@@ -180,9 +187,9 @@ pub enum Format {
 
 impl Format {
     #[doc(hidden)]
-    pub fn as_ffi(&self) -> u32 {
+    pub fn as_ffi(self) -> u32 {
         use Format::*;
-        match *self {
+        match self {
             C8 => ::ffi::GBM_FORMAT_C8,
             R8 => ::ffi::GBM_FORMAT_R8,
             GR88 => ::ffi::GBM_FORMAT_GR88,

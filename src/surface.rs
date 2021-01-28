@@ -1,16 +1,41 @@
-use {AsRaw, BufferObject, DeviceDestroyedError};
-use std::error::{self, Error};
+use std::error;
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::rc::{Rc, Weak};
+use {AsRaw, BufferObject, DeviceDestroyedError};
 
 /// A gbm rendering surface
 pub struct Surface<T: 'static> {
     ffi: Rc<*mut ::ffi::gbm_surface>,
     _device: Weak<*mut ::ffi::gbm_device>,
     _bo_userdata: PhantomData<T>,
+}
+
+#[cfg(feature = "glutin-support")]
+use glutin_interface::{NativeWindow, RawWindow, Seal};
+
+#[cfg(feature = "glutin-support")]
+use winit_types::dpi::PhysicalSize;
+
+#[cfg(feature = "glutin-support")]
+impl<T: 'static> NativeWindow for Surface<T> {
+    fn raw_window(&self) -> RawWindow {
+        RawWindow::Gbm {
+            gbm_surface: *self.ffi as *mut _,
+            _non_exhaustive_do_not_use: Seal,
+        }
+    }
+
+    fn size(&self) -> PhysicalSize<u32> {
+        // Glutin doesn't need this for this platform, so whatever
+        unimplemented!()
+    }
+
+    fn scale_factor(&self) -> f64 {
+        1.0
+    }
 }
 
 /// Handle to a front buffer of a surface
@@ -56,20 +81,17 @@ pub enum FrontBufferError {
 
 impl fmt::Display for FrontBufferError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.description())
+        let err = match *self {
+            FrontBufferError::NoFreeBuffers => "No free buffers remaining".to_string(),
+            FrontBufferError::Unknown => "Unknown error".to_string(),
+            FrontBufferError::Destroyed(ref err) => err.to_string(),
+        };
+        write!(f, "{}", err)
     }
 }
 
 impl error::Error for FrontBufferError {
-    fn description(&self) -> &str {
-        match *self {
-            FrontBufferError::NoFreeBuffers => "No free buffers remaining",
-            FrontBufferError::Unknown => "Unknown error",
-            FrontBufferError::Destroyed(ref err) => err.description(),
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
             FrontBufferError::Destroyed(ref err) => Some(err),
             _ => None,
@@ -122,7 +144,10 @@ impl<T: 'static> Surface<T> {
         }
     }
 
-    pub(crate) unsafe fn new(ffi: *mut ::ffi::gbm_surface, device: Weak<*mut ::ffi::gbm_device>) -> Surface<T> {
+    pub(crate) unsafe fn new(
+        ffi: *mut ::ffi::gbm_surface,
+        device: Weak<*mut ::ffi::gbm_device>,
+    ) -> Surface<T> {
         Surface {
             ffi: Rc::new(ffi),
             _device: device,
