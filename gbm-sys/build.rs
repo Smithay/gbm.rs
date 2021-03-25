@@ -1,13 +1,31 @@
 #[cfg(feature = "gen")]
 extern crate bindgen;
 
-#[cfg(feature = "gen")]
-use std::env;
-#[cfg(feature = "gen")]
-use std::path::Path;
+use std::{env, path::Path};
 
 #[cfg(not(feature = "gen"))]
-fn main() {}
+fn main() {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+
+    let bindings_file = Path::new("src")
+        .join("platforms")
+        .join(&target_os)
+        .join(&target_arch)
+        .join("gen.rs");
+
+    if bindings_file.is_file() {
+        println!(
+            "cargo:rustc-env=GBM_SYS_BINDINGS_PATH={}/{}",
+            target_os, target_arch
+        );
+    } else {
+        panic!(
+            "No prebuilt bindings for target OS `{}` and/or architecture `{}`. Try `gen` feature.",
+            target_os, target_arch
+        );
+    }
+}
 
 #[cfg(feature = "gen")]
 fn main() {
