@@ -8,7 +8,7 @@ version = "0.6.0"
 keywords = ["wayland", "gbm", "drm", "bindings"]
 categories = ["external-ffi-bindings"]
 authors = ["Victor Brekenfeld <github@drakulix.de>"]
-exclude = [".travis.yml", ".rustfmt.toml"]
+exclude = [".gitignore", ".travis.yml", ".rustfmt.toml", ".github"]
 
 [dependencies]
 gbm-sys = { version = "0.1", path = "./gbm-sys" }
