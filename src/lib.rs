@@ -17,8 +17,8 @@
 //! extern crate drm;
 //! extern crate gbm;
 //!
-//! use drm::control::{crtc, framebuffer};
-//! # use drm::control::{Mode, ResourceInfo};
+//! use drm::control::{self, crtc, framebuffer};
+//! # use drm::control::Mode;
 //! # use drm::control::connector::Info as ConnectorInfo;
 //! use gbm::{Device, Format, BufferObjectFlags};
 //!
@@ -70,16 +70,16 @@
 //! bo.write(&buffer).unwrap();
 //!
 //! // create a framebuffer from our buffer
-//! let fb_info = framebuffer::create(&gbm, &bo).unwrap();
+//! let fb = gbm.add_framebuffer(&bo).unwrap();
 //!
 //! # let res_handles = gbm.resource_handles().unwrap();
 //! # let con = *res_handles.connectors().iter().next().unwrap();
 //! # let crtc_handle = *res_handles.crtcs().iter().next().unwrap();
-//! # let connector_info: ConnectorInfo = gbm.resource_info(con).unwrap();
+//! # let connector_info: ConnectorInfo = gbm.get_connector(con).unwrap();
 //! # let mode: Mode = connector_info.modes()[0];
 //! #
 //! // display it (and get a crtc, mode and connector before)
-//! crtc::set(&gbm, crtc_handle, fb_info.handle(), &[con], (0, 0), Some(mode)).unwrap();
+//! gbm.set_crtc(crtc_handle, Some(fb), (0, 0), &[con], Some(mode)).unwrap();
 //! # }
 //! ```
 
@@ -104,6 +104,8 @@ mod surface;
 pub use self::buffer_object::*;
 pub use self::device::*;
 pub use self::surface::*;
+
+use std::sync::{Arc, Weak};
 
 /// Trait for types that allow to optain the underlying raw libinput pointer.
 pub trait AsRaw<T> {
@@ -306,5 +308,66 @@ impl Format {
 
             _ => None,
         }
+    }
+}
+
+struct PtrDrop<T>(*mut T, Option<Box<dyn FnOnce(*mut T) + Send + 'static>>);
+
+impl<T> Drop for PtrDrop<T> {
+    fn drop(&mut self) {
+        (self.1.take().unwrap())(self.0);
+    }
+}
+
+pub(crate) struct Ptr<T>(Arc<PtrDrop<T>>);
+
+impl<T> Ptr<T> {
+    fn new<F: FnOnce(*mut T) + Send + 'static>(ptr: *mut T, destructor: F) -> Ptr<T> {
+        Ptr(Arc::new(PtrDrop(ptr, Some(Box::new(destructor)))))
+    }
+
+    fn downgrade(&self) -> WeakPtr<T> {
+        WeakPtr(Arc::downgrade(&self.0))
+    }
+}
+
+impl<T> std::ops::Deref for Ptr<T> {
+    type Target = *mut T;
+
+    fn deref(&self) -> &Self::Target {
+        &(self.0).0
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct WeakPtr<T>(Weak<PtrDrop<T>>);
+
+impl<T> WeakPtr<T> {
+    fn upgrade(&self) -> Option<Ptr<T>> {
+        self.0.upgrade().map(Ptr)
+    }
+}
+
+unsafe impl<T> Send for WeakPtr<T> where Ptr<T>: Send {}
+
+#[cfg(test)]
+mod test {
+    fn is_send<T: Send>() {}
+
+    #[test]
+    fn device_is_send() {
+        is_send::<super::Device<std::fs::File>>();
+        is_send::<super::Device<super::FdWrapper>>();
+    }
+
+    #[test]
+    fn surface_is_send() {
+        is_send::<super::Surface<std::fs::File>>();
+        is_send::<super::Surface<super::FdWrapper>>();
+    }
+
+    #[test]
+    fn unmapped_bo_is_send() {
+        is_send::<super::BufferObject<()>>();
     }
 }

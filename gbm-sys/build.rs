@@ -15,11 +15,11 @@ fn main()
     // Setup bindings builder
     let generated = bindgen::builder()
         .header("include/gbm.h")
-        .no_unstable_rust()
         .ctypes_prefix("libc")
-        .whitelisted_type(r"^gbm_.*$")
-        .whitelisted_function(r"^gbm_.*$")
+        .whitelist_type(r"^gbm_.*$")
+        .whitelist_function(r"^gbm_.*$")
         .constified_enum("gbm_bo_flags")
+        .constified_enum_module("gbm_bo_transfer_flags")
         .generate()
         .unwrap();
 

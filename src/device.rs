@@ -1,11 +1,10 @@
-use {AsRaw, BufferObject, BufferObjectFlags, Format, Surface};
+use {AsRaw, BufferObject, BufferObjectFlags, Format, Surface, Ptr};
 
 use libc::c_void;
 
 use std::error;
 use std::ffi::CStr;
 use std::fmt;
-use std::rc::Rc;
 use std::io::{Error as IoError, Result as IoResult};
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::ops::{Deref, DerefMut};
@@ -37,8 +36,10 @@ impl AsRawFd for FdWrapper {
 /// An open GBM device
 pub struct Device<T: AsRawFd + 'static> {
     fd: T,
-    ffi: Rc<*mut ::ffi::gbm_device>,
+    ffi: Ptr<::ffi::gbm_device>,
 }
+
+unsafe impl Send for Ptr<::ffi::gbm_device> {}
 
 impl<T: AsRawFd + 'static> AsRawFd for Device<T> {
     fn as_raw_fd(&self) -> RawFd {
@@ -84,7 +85,7 @@ impl Device<FdWrapper> {
         } else {
             Ok(Device {
                 fd: FdWrapper(fd),
-                ffi: Rc::new(ptr),
+                ffi: Ptr::new(ptr, |ptr| ::ffi::gbm_device_destroy(ptr)),
             })
         }
     }
@@ -103,7 +104,7 @@ impl<T: AsRawFd + 'static> Device<T> {
         } else {
             Ok(Device {
                 fd: fd,
-                ffi: Rc::new(ptr),
+                ffi: Ptr::<::ffi::gbm_device>::new(ptr, |ptr| unsafe { ::ffi::gbm_device_destroy(ptr) }),
             })
         }
     }
@@ -148,7 +149,7 @@ impl<T: AsRawFd + 'static> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { Surface::new(ptr, Rc::downgrade(&self.ffi)) })
+            Ok(unsafe { Surface::new(ptr, self.ffi.downgrade()) })
         }
     }
 
@@ -172,7 +173,7 @@ impl<T: AsRawFd + 'static> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { BufferObject::new(ptr, Rc::downgrade(&self.ffi)) })
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
         }
     }
 
@@ -201,7 +202,7 @@ impl<T: AsRawFd + 'static> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { BufferObject::new(ptr, Rc::downgrade(&self.ffi)) })
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
         }
     }
 
@@ -234,7 +235,7 @@ impl<T: AsRawFd + 'static> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(BufferObject::new(ptr, Rc::downgrade(&self.ffi)))
+            Ok(BufferObject::new(ptr, self.ffi.downgrade()))
         }
     }
 
@@ -274,7 +275,7 @@ impl<T: AsRawFd + 'static> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { BufferObject::new(ptr, Rc::downgrade(&self.ffi)) })
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
         }
     }
 }
@@ -284,12 +285,6 @@ impl<T: DrmDevice + AsRawFd + 'static> DrmDevice for Device<T> {}
 
 #[cfg(feature = "drm-support")]
 impl<T: DrmControlDevice + AsRawFd + 'static> DrmControlDevice for Device<T> {}
-
-impl<T: AsRawFd + 'static> Drop for Device<T> {
-    fn drop(&mut self) {
-        unsafe { ::ffi::gbm_device_destroy(*self.ffi) };
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Thrown when the underlying gbm device was already destroyed
