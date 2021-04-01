@@ -1,7 +1,7 @@
-use {AsRaw, Device, DeviceDestroyedError, Format, Ptr, WeakPtr};
+use {AsRaw, Device, DeviceDestroyedError, Format, Modifier, Ptr, WeakPtr};
 
 #[cfg(feature = "drm-support")]
-use drm::buffer::{Buffer as DrmBuffer, Handle, DrmFourcc};
+use drm::buffer::{Buffer as DrmBuffer, Handle};
 
 use std::error;
 use std::fmt;
@@ -29,17 +29,22 @@ bitflags! {
     /// and use flags are supported
     pub struct BufferObjectFlags: u32 {
         /// Buffer is going to be presented to the screen using an API such as KMS
-        const SCANOUT      = ::ffi::gbm_bo_flags_GBM_BO_USE_SCANOUT as u32;
+        const SCANOUT      = ::ffi::gbm_bo_flags::GBM_BO_USE_SCANOUT as u32;
         /// Buffer is going to be used as cursor
-        const CURSOR       = ::ffi::gbm_bo_flags_GBM_BO_USE_CURSOR as u32;
+        const CURSOR       = ::ffi::gbm_bo_flags::GBM_BO_USE_CURSOR as u32;
+        /// Buffer is going to be used as cursor (deprecated)
+        #[deprecated = "Use CURSOR instead"]
+        const CURSOR_64X64 = ::ffi::gbm_bo_flags::GBM_BO_USE_CURSOR_64X64 as u32;
         /// Buffer is to be used for rendering - for example it is going to be used
         /// as the storage for a color buffer
-        const RENDERING    = ::ffi::gbm_bo_flags_GBM_BO_USE_RENDERING as u32;
+        const RENDERING    = ::ffi::gbm_bo_flags::GBM_BO_USE_RENDERING as u32;
         /// Buffer can be used for gbm_bo_write.  This is guaranteed to work
         /// with `BufferObjectFlags::Cursor`, but may not work for other combinations.
-        const WRITE        = ::ffi::gbm_bo_flags_GBM_BO_USE_WRITE as u32;
+        const WRITE        = ::ffi::gbm_bo_flags::GBM_BO_USE_WRITE as u32;
         /// Buffer is linear, i.e. not tiled.
-        const LINEAR       = ::ffi::gbm_bo_flags_GBM_BO_USE_LINEAR as u32;
+        const LINEAR       = ::ffi::gbm_bo_flags::GBM_BO_USE_LINEAR as u32;
+        /// Buffer is protected
+        const PROTECTED    = ::ffi::gbm_bo_flags::GBM_BO_USE_PROTECTED as u32;
     }
 }
 
@@ -169,12 +174,78 @@ impl<T: 'static> BufferObject<T> {
         }
     }
 
+    /// Get the stride of the buffer object
+    pub fn stride_for_plane(&self, plane: i32) -> Result<u32, DeviceDestroyedError> {
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_stride_for_plane(*self.ffi, plane) })
+        } else {
+            Err(DeviceDestroyedError)
+        }
+    }
+
     /// Get the format of the buffer object
     pub fn format(&self) -> Result<Format, DeviceDestroyedError> {
         let device = self._device.upgrade();
         if device.is_some() {
-            Ok(Format::from_ffi(unsafe { ::ffi::gbm_bo_get_format(*self.ffi) })
+            use std::convert::TryFrom;
+            Ok(Format::try_from(unsafe { ::ffi::gbm_bo_get_format(*self.ffi) })
             .expect("libgbm returned invalid buffer format"))
+        } else {
+            Err(DeviceDestroyedError)
+        }
+    }
+    
+    /// Get the bits per pixel of the buffer object
+    pub fn bpp(&self) -> Result<u32, DeviceDestroyedError> {
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_bpp(*self.ffi) })
+        } else {
+            Err(DeviceDestroyedError)
+        }
+    }
+    
+    /// Get the offset for a plane of the buffer object
+    pub fn offset(&self, plane: i32) -> Result<u32, DeviceDestroyedError> {
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_offset(*self.ffi, plane) })
+        } else {
+            Err(DeviceDestroyedError)
+        }
+    }
+    
+    /// Get the plane count of the buffer object
+    pub fn plane_count(&self) -> Result<u32, DeviceDestroyedError> {
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_plane_count(*self.ffi) as u32 })
+        } else {
+            Err(DeviceDestroyedError)
+        }
+    }
+    
+    /// Get the modifier of the buffer object
+    pub fn modifier(&self) -> Result<Modifier, DeviceDestroyedError> {
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(Modifier::from(unsafe { ::ffi::gbm_bo_get_modifier(*self.ffi) }))
+        } else {
+            Err(DeviceDestroyedError)
+        }
+    }
+
+    /// Get a DMA-BUF file descriptor for the buffer object
+    ///
+    /// This function creates a DMA-BUF (also known as PRIME) file descriptor
+    /// handle for the buffer object.  Each call to gbm_bo_get_fd() returns a new
+    /// file descriptor and the caller is responsible for closing the file
+    /// descriptor.
+    pub fn fd(&self) -> Result<RawFd, DeviceDestroyedError> {
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_fd(*self.ffi) })
         } else {
             Err(DeviceDestroyedError)
         }
@@ -188,6 +259,19 @@ impl<T: 'static> BufferObject<T> {
         let device = self._device.upgrade();
         if device.is_some() {
             Ok(unsafe { ::ffi::gbm_bo_get_handle(*self.ffi) })
+        } else {
+            Err(DeviceDestroyedError)
+        }
+    }
+
+    /// Get the handle of a plane of the buffer object
+    ///
+    /// This is stored in the platform generic union `BufferObjectHandle` type. However
+    /// the format of this handle is platform specific.
+    pub fn handle_for_plane(&self, plane: i32) -> Result<BufferObjectHandle, DeviceDestroyedError> {
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_handle_for_plane(*self.ffi, plane) })
         } else {
             Err(DeviceDestroyedError)
         }
@@ -435,9 +519,8 @@ impl<T: 'static> DrmBuffer for BufferObject<T> {
         (self.width().expect("GbmDevice does not exist anymore"), self.height().expect("GbmDevice does not exist anymore"))
     }
 
-    fn format(&self) -> DrmFourcc {
-        use std::convert::TryFrom;
-        DrmFourcc::try_from(self.format().expect("GbmDevice does not exist anymore").as_ffi()).unwrap()
+    fn format(&self) -> Format {
+        BufferObject::<T>::format(self).expect("GbmDevice does not exist anymore")
     }
 
     fn pitch(&self) -> u32 {
@@ -456,7 +539,7 @@ pub struct WrongDeviceError;
 
 impl fmt::Display for WrongDeviceError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "The gbm specified is not the one this buffer object belongs to")
+        write!(f, "The gbm device specified is not the one this buffer object belongs to")
     }
 }
 

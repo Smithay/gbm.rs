@@ -1,4 +1,4 @@
-use {AsRaw, BufferObject, BufferObjectFlags, Format, Surface, Ptr};
+use {AsRaw, BufferObject, BufferObjectFlags, Format, Modifier, Surface, Ptr};
 
 use libc::c_void;
 
@@ -8,9 +8,6 @@ use std::fmt;
 use std::io::{Error as IoError, Result as IoResult};
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::ops::{Deref, DerefMut};
-
-#[cfg(feature = "import-wayland")]
-use wayland_server::Resource;
 
 #[cfg(feature = "import-wayland")]
 use wayland_server::protocol::wl_buffer::WlBuffer;
@@ -123,7 +120,7 @@ impl<T: AsRawFd + 'static> Device<T> {
         unsafe {
             ::ffi::gbm_device_is_format_supported(
                 *self.ffi,
-                format.as_ffi(),
+                format as u32,
                 usage.bits(),
             ) != 0
         }
@@ -142,8 +139,34 @@ impl<T: AsRawFd + 'static> Device<T> {
                 *self.ffi,
                 width,
                 height,
-                format.as_ffi(),
+                format as u32,
                 usage.bits(),
+            )
+        };
+        if ptr.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(unsafe { Surface::new(ptr, self.ffi.downgrade()) })
+        }
+    }
+
+    /// Allocate a new surface object with explicit modifiers
+    pub fn create_surface_with_modifiers<U: 'static>(
+        &self,
+        width: u32,
+        height: u32,
+        format: Format,
+        modifiers: impl Iterator<Item=Modifier>,
+    ) -> IoResult<Surface<U>> {
+        let mods = modifiers.take(::ffi::GBM_MAX_PLANES as usize).map(|m| m.into()).collect::<Vec<u64>>();
+        let ptr = unsafe {
+            ::ffi::gbm_surface_create_with_modifiers(
+                *self.ffi,
+                width,
+                height,
+                format as u32,
+                mods.as_ptr(),
+                mods.len() as u32,
             )
         };
         if ptr.is_null() {
@@ -166,8 +189,34 @@ impl<T: AsRawFd + 'static> Device<T> {
                 *self.ffi,
                 width,
                 height,
-                format.as_ffi(),
+                format as u32,
                 usage.bits(),
+            )
+        };
+        if ptr.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
+        }
+    }
+    
+    ///  Allocate a buffer object for the given dimensions with explicit modifiers
+    pub fn create_buffer_object_with_modifiers<U: 'static>(
+        &self,
+        width: u32,
+        height: u32,
+        format: Format,
+        modifiers: impl Iterator<Item=Modifier>,
+    ) -> IoResult<BufferObject<U>> {
+        let mods = modifiers.take(::ffi::GBM_MAX_PLANES as usize).map(|m| m.into()).collect::<Vec<u64>>();
+        let ptr = unsafe {
+            ::ffi::gbm_bo_create_with_modifiers(
+                *self.ffi,
+                width,
+                height,
+                format as u32,
+                mods.as_ptr(),
+                mods.len() as u32,
             )
         };
         if ptr.is_null() {
@@ -194,8 +243,8 @@ impl<T: AsRawFd + 'static> Device<T> {
         let ptr = unsafe {
             ::ffi::gbm_bo_import(
                 *self.ffi,
-                ::ffi::GBM_BO_IMPORT::WL_BUFFER as u32,
-                buffer.ptr() as *mut _,
+                ::ffi::GBM_BO_IMPORT_WL_BUFFER as u32,
+                buffer.as_ref().c_ptr() as *mut _,
                 usage.bits(),
             )
         };
@@ -228,7 +277,7 @@ impl<T: AsRawFd + 'static> Device<T> {
         let ptr =
             ::ffi::gbm_bo_import(
                 *self.ffi,
-                ::ffi::GBM_BO_IMPORT::EGL_IMAGE as u32,
+                ::ffi::GBM_BO_IMPORT_EGL_IMAGE as u32,
                 buffer,
                 usage.bits(),
             );
@@ -258,17 +307,63 @@ impl<T: AsRawFd + 'static> Device<T> {
     ) -> IoResult<BufferObject<U>> {
         let mut fd_data = ::ffi::gbm_import_fd_data {
             fd: buffer,
-            width: width,
-            height: height,
-            stride: stride,
-            format: format.as_ffi(),
+            width,
+            height,
+            stride,
+            format: format as u32,
         };
 
         let ptr = unsafe {
             ::ffi::gbm_bo_import(
                 *self.ffi,
-                ::ffi::GBM_BO_IMPORT::FD as u32,
+                ::ffi::GBM_BO_IMPORT_FD as u32,
                 &mut fd_data as *mut ::ffi::gbm_import_fd_data as *mut _,
+                usage.bits(),
+            )
+        };
+        if ptr.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
+        }
+    }
+    
+    /// Create a gbm buffer object from an dma buffer with explicit modifiers
+    ///
+    /// This function imports a foreign dma buffer from an open file descriptor
+    /// and creates a new gbm buffer object for it.
+    /// This enabled using the foreign object with a display API such as KMS.
+    ///
+    /// The gbm bo shares the underlying pixels but its life-time is
+    /// independent of the foreign object.
+    pub fn import_buffer_object_from_dma_buf_with_modifiers<U: 'static>(
+        &self,
+        len: u32,
+        buffers: [RawFd; 4],
+        width: u32,
+        height: u32,
+        format: Format,
+        usage: BufferObjectFlags,
+        strides: [i32; 4],
+        offsets: [i32; 4],
+        modifier: Modifier,
+    ) -> IoResult<BufferObject<U>> {
+        let mut fd_data = ::ffi::gbm_import_fd_modifier_data {
+            fds: buffers,
+            width,
+            height,
+            format: format as u32,
+            strides,
+            offsets,
+            modifier: modifier.into(),
+            num_fds: len,
+        };
+
+        let ptr = unsafe {
+            ::ffi::gbm_bo_import(
+                *self.ffi,
+                ::ffi::GBM_BO_IMPORT_FD_MODIFIER as u32,
+                &mut fd_data as *mut ::ffi::gbm_import_fd_modifier_data as *mut _,
                 usage.bits(),
             )
         };
