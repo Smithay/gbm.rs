@@ -1,5 +1,5 @@
 use {AsRaw, BufferObject, DeviceDestroyedError, Ptr, WeakPtr};
-use std::error::{self, Error};
+use std::error;
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -25,19 +25,15 @@ pub enum FrontBufferError {
 
 impl fmt::Display for FrontBufferError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.description())
+        match *self {
+            FrontBufferError::NoFreeBuffers => write!(f, "No free buffers remaining"),
+            FrontBufferError::Unknown => write!(f, "Unknown error"),
+            FrontBufferError::Destroyed(ref err) => write!(f, "Buffer was destroyed: {}", err),
+        }
     }
 }
 
 impl error::Error for FrontBufferError {
-    fn description(&self) -> &str {
-        match *self {
-            FrontBufferError::NoFreeBuffers => "No free buffers remaining",
-            FrontBufferError::Unknown => "Unknown error",
-            FrontBufferError::Destroyed(ref err) => err.description(),
-        }
-    }
-
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             FrontBufferError::Destroyed(ref err) => Some(err),
