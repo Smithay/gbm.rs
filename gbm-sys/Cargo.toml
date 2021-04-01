@@ -14,7 +14,7 @@ license = "MIT"
 path = "src/lib.rs"
 
 [build-dependencies]
-bindgen = { version = "0.22", optional = true }
+bindgen = { version = "0.57", optional = true }
 
 [dependencies]
 libc = "0.2"

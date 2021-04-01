@@ -313,7 +313,7 @@ impl<T: 'static> BufferObject<T> {
     pub fn write(&mut self, buffer: &[u8]) -> Result<IoResult<()>, DeviceDestroyedError> {
         let device = self._device.upgrade();
         if device.is_some() {
-            let result = unsafe { ::ffi::gbm_bo_write(*self.ffi, buffer.as_ptr() as *const _, buffer.len()) };
+            let result = unsafe { ::ffi::gbm_bo_write(*self.ffi, buffer.as_ptr() as *const _, buffer.len() as u64) };
             if result != 0 {
                 Ok(Err(IoError::last_os_error()))
             } else {
@@ -444,7 +444,7 @@ impl<T: 'static> DrmBuffer for BufferObject<T> {
     }
 
     fn handle(&self) -> DrmId {
-        unsafe { DrmId::from_raw(*self.handle().expect("GbmDevice does not exist anymore").u32.as_ref()) }
+        unsafe { DrmId::from_raw(self.handle().expect("GbmDevice does not exist anymore").u32_) }
     }
 }
 
