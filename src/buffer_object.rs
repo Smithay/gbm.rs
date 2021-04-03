@@ -1,7 +1,7 @@
 use {AsRaw, Device, DeviceDestroyedError, Format, Ptr, WeakPtr};
 
 #[cfg(feature = "drm-support")]
-use drm::buffer::{Buffer as DrmBuffer, Id as DrmId, PixelFormat as DrmPixelFormat};
+use drm::buffer::{Buffer as DrmBuffer, Handle as DrmId, format::PixelFormat as DrmPixelFormat};
 
 use std::error;
 use std::fmt;
@@ -444,7 +444,7 @@ impl<T: 'static> DrmBuffer for BufferObject<T> {
     }
 
     fn handle(&self) -> DrmId {
-        unsafe { DrmId::from_raw(*self.handle().expect("GbmDevice does not exist anymore").u32.as_ref()) }
+        unsafe { DrmId::from(drm::control::RawResourceHandle::new_unchecked(*self.handle().expect("GbmDevice does not exist anymore").u32.as_ref())) }
     }
 }
 
