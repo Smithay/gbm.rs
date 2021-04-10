@@ -1,7 +1,7 @@
 use {AsRaw, Device, DeviceDestroyedError, Format, Modifier, Ptr, WeakPtr};
 
 #[cfg(feature = "drm-support")]
-use drm::buffer::{Buffer as DrmBuffer, Handle};
+use drm::buffer::{Buffer as DrmBuffer, PlanarBuffer as DrmPlanarBuffer, Handle};
 
 use std::error;
 use std::fmt;
@@ -530,6 +530,45 @@ impl<T: 'static> DrmBuffer for BufferObject<T> {
     fn handle(&self) -> Handle {
         use std::num::NonZeroU32;
         unsafe { Handle::from(NonZeroU32::new_unchecked(self.handle().expect("GbmDevice does not exist anymore").u32_)) }
+    }
+}
+
+#[cfg(feature = "drm-support")]
+impl<T: 'static> DrmPlanarBuffer for BufferObject<T> {
+    fn size(&self) -> (u32, u32) {
+        (self.width().expect("GbmDevice does not exist anymore"), self.height().expect("GbmDevice does not exist anymore"))
+    }
+    fn format(&self) -> Format {
+        BufferObject::<T>::format(self).expect("GbmDevice does not exist anymore")
+    }
+    fn pitches(&self) -> [u32; 4] {
+        let num = self.plane_count().expect("GbmDevice does not exist anymore");
+        [
+            BufferObject::<T>::stride_for_plane(self, 0).unwrap(),
+            if num > 1 { BufferObject::<T>::stride_for_plane(self, 1).unwrap() } else { 0 },
+            if num > 2 { BufferObject::<T>::stride_for_plane(self, 2).unwrap() } else { 0 },
+            if num > 3 { BufferObject::<T>::stride_for_plane(self, 3).unwrap() } else { 0 },
+        ]
+    }
+    fn handles(&self) -> [Option<Handle>; 4] {
+        use std::num::NonZeroU32;
+        let num = self.plane_count().expect("GbmDevice does not exist anymore");
+        [
+            Some(unsafe { Handle::from(NonZeroU32::new_unchecked(BufferObject::<T>::handle_for_plane(self, 0).unwrap().u32_)) }),
+            if num > 1 { Some(unsafe { Handle::from(NonZeroU32::new_unchecked(BufferObject::<T>::handle_for_plane(self, 1).unwrap().u32_)) }) } else { None },
+            if num > 2 { Some(unsafe { Handle::from(NonZeroU32::new_unchecked(BufferObject::<T>::handle_for_plane(self, 2).unwrap().u32_)) }) } else { None },
+            if num > 3 { Some(unsafe { Handle::from(NonZeroU32::new_unchecked(BufferObject::<T>::handle_for_plane(self, 3).unwrap().u32_)) }) } else { None },
+        ]
+
+    }
+    fn offsets(&self) -> [u32; 4] {
+        let num = self.plane_count().expect("GbmDevice does not exist anymore");
+        [
+            BufferObject::<T>::offset(self, 0).unwrap(),
+            if num > 1 { BufferObject::<T>::offset(self, 1).unwrap() } else { 0 },
+            if num > 2 { BufferObject::<T>::offset(self, 2).unwrap() } else { 0 },
+            if num > 3 { BufferObject::<T>::offset(self, 3).unwrap() } else { 0 },
+        ]
     }
 }
 
