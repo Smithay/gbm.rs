@@ -12,7 +12,7 @@ use std::os::unix::io::{AsRawFd, RawFd};
 use std::ptr;
 use std::slice;
 
-/// A gbm buffer object
+/// A GBM buffer object
 pub struct BufferObject<T: 'static> {
     pub(crate) ffi: Ptr<ffi::gbm_bo>,
     pub(crate) _device: WeakPtr<::ffi::gbm_device>,
@@ -23,9 +23,9 @@ unsafe impl Send for Ptr<::ffi::gbm_bo> {}
 
 bitflags! {
     /// Flags to indicate the intended use for the buffer - these are passed into
-    /// `Device::create_buffer_object`.
+    /// [`Device::create_buffer_object()`].
     ///
-    /// Use `Device::is_format_supported` to check if the combination of format
+    /// Use [`Device::is_format_supported()`] to check if the combination of format
     /// and use flags are supported
     pub struct BufferObjectFlags: u32 {
         /// Buffer is going to be presented to the screen using an API such as KMS
@@ -38,8 +38,8 @@ bitflags! {
         /// Buffer is to be used for rendering - for example it is going to be used
         /// as the storage for a color buffer
         const RENDERING    = ::ffi::gbm_bo_flags::GBM_BO_USE_RENDERING as u32;
-        /// Buffer can be used for gbm_bo_write.  This is guaranteed to work
-        /// with `BufferObjectFlags::Cursor`, but may not work for other combinations.
+        /// Buffer can be used for [`BufferObject::write()`].  This is guaranteed to work
+        /// with [`Self::CURSOR`], but may not work for other combinations.
         const WRITE        = ::ffi::gbm_bo_flags::GBM_BO_USE_WRITE as u32;
         /// Buffer is linear, i.e. not tiled.
         const LINEAR       = ::ffi::gbm_bo_flags::GBM_BO_USE_LINEAR as u32;
@@ -195,7 +195,7 @@ impl<T: 'static> BufferObject<T> {
             Err(DeviceDestroyedError)
         }
     }
-    
+
     /// Get the bits per pixel of the buffer object
     pub fn bpp(&self) -> Result<u32, DeviceDestroyedError> {
         let device = self._device.upgrade();
@@ -205,7 +205,7 @@ impl<T: 'static> BufferObject<T> {
             Err(DeviceDestroyedError)
         }
     }
-    
+
     /// Get the offset for a plane of the buffer object
     pub fn offset(&self, plane: i32) -> Result<u32, DeviceDestroyedError> {
         let device = self._device.upgrade();
@@ -215,7 +215,7 @@ impl<T: 'static> BufferObject<T> {
             Err(DeviceDestroyedError)
         }
     }
-    
+
     /// Get the plane count of the buffer object
     pub fn plane_count(&self) -> Result<u32, DeviceDestroyedError> {
         let device = self._device.upgrade();
@@ -225,7 +225,7 @@ impl<T: 'static> BufferObject<T> {
             Err(DeviceDestroyedError)
         }
     }
-    
+
     /// Get the modifier of the buffer object
     pub fn modifier(&self) -> Result<Modifier, DeviceDestroyedError> {
         let device = self._device.upgrade();
@@ -239,7 +239,7 @@ impl<T: 'static> BufferObject<T> {
     /// Get a DMA-BUF file descriptor for the buffer object
     ///
     /// This function creates a DMA-BUF (also known as PRIME) file descriptor
-    /// handle for the buffer object.  Each call to gbm_bo_get_fd() returns a new
+    /// handle for the buffer object.  Each call to [`Self::fd()`] returns a new
     /// file descriptor and the caller is responsible for closing the file
     /// descriptor.
     pub fn fd(&self) -> Result<RawFd, DeviceDestroyedError> {
@@ -253,7 +253,7 @@ impl<T: 'static> BufferObject<T> {
 
     /// Get the handle of the buffer object
     ///
-    /// This is stored in the platform generic union `BufferObjectHandle` type. However
+    /// This is stored in the platform generic union [`BufferObjectHandle`] type.  However
     /// the format of this handle is platform specific.
     pub fn handle(&self) -> Result<BufferObjectHandle, DeviceDestroyedError> {
         let device = self._device.upgrade();
@@ -266,7 +266,7 @@ impl<T: 'static> BufferObject<T> {
 
     /// Get the handle of a plane of the buffer object
     ///
-    /// This is stored in the platform generic union `BufferObjectHandle` type. However
+    /// This is stored in the platform generic union [`BufferObjectHandle`] type.  However
     /// the format of this handle is platform specific.
     pub fn handle_for_plane(&self, plane: i32) -> Result<BufferObjectHandle, DeviceDestroyedError> {
         let device = self._device.upgrade();
@@ -277,9 +277,9 @@ impl<T: 'static> BufferObject<T> {
         }
     }
 
-    /// Map a region of a gbm buffer object for cpu access
+    /// Map a region of a GBM buffer object for cpu access
     ///
-    /// This function maps a region of a gbm bo for cpu read access.
+    /// This function maps a region of a GBM bo for cpu read access.
     pub fn map<'a, D, F, S>(&'a self, device: &Device<D>, x: u32, y: u32, width: u32, height: u32, f: F) -> Result<IoResult<S>, WrongDeviceError>
         where
             D: AsRawFd + 'static,
@@ -328,9 +328,9 @@ impl<T: 'static> BufferObject<T> {
         }
     }
 
-    /// Map a region of a gbm buffer object for cpu access
+    /// Map a region of a GBM buffer object for cpu access
     ///
-    /// This function maps a region of a gbm bo for cpu read/write access.
+    /// This function maps a region of a GBM bo for cpu read/write access.
     pub fn map_mut<'a, D, F, S>(
         &'a mut self,
         device: &Device<D>,
@@ -389,7 +389,7 @@ impl<T: 'static> BufferObject<T> {
 
     ///  Write data into the buffer object
     ///
-    /// If the buffer object was created with the `BufferObjectFlags::Write` flag,
+    /// If the buffer object was created with the [`BufferObjectFlags::WRITE`] flag,
     /// this function can be used to write data into the buffer object.  The
     /// data is copied directly into the object and it's the responsibility
     /// of the caller to make sure the data represents valid pixel data,
@@ -573,7 +573,7 @@ impl<T: 'static> DrmPlanarBuffer for BufferObject<T> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-/// Thrown when the gbm device does not belong to the buffer object
+/// Thrown when the GBM device does not belong to the buffer object
 pub struct WrongDeviceError;
 
 impl fmt::Display for WrongDeviceError {

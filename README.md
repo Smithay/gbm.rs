@@ -19,7 +19,7 @@ Add to your Cargo.toml
 
 ## Example
 
-```rust,no_run
+```rust
 extern crate drm;
 extern crate gbm;
 
@@ -29,7 +29,7 @@ use gbm::{Device, Format, BufferObjectFlags};
 // ... init your drm device ...
 let drm = init_drm_device();
 
-// init a gbm device
+// init a GBM device
 let gbm = Device::new(drm).unwrap();
 
 // create a buffer

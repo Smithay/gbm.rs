@@ -67,10 +67,10 @@ impl Device<FdWrapper> {
     /// Open a GBM device from a given unix file descriptor.
     ///
     /// The file descriptor passed in is used by the backend to communicate with
-    /// platform for allocating the memory. For allocations using DRI this would be
-    /// the file descriptor returned when opening a device such as /dev/dri/card0.
+    /// platform for allocating the memory.  For allocations using DRI this would be
+    /// the file descriptor returned when opening a device such as `/dev/dri/card0`.
     ///
-    /// # Unsafety
+    /// # Safety
     ///
     /// The lifetime of the resulting device depends on the ownership of the file descriptor.
     /// Closing the file descriptor before dropping the Device will lead to undefined behavior.
@@ -92,15 +92,15 @@ impl<T: AsRawFd + 'static> Device<T> {
     /// Open a GBM device from a given open DRM device.
     ///
     /// The underlying file descriptor passed in is used by the backend to communicate with
-    /// platform for allocating the memory. For allocations using DRI this would be
-    /// the file descriptor returned when opening a device such as /dev/dri/card0.
+    /// platform for allocating the memory.  For allocations using DRI this would be
+    /// the file descriptor returned when opening a device such as `/dev/dri/card0`.
     pub fn new(fd: T) -> IoResult<Device<T>> {
         let ptr = unsafe { ::ffi::gbm_create_device(fd.as_raw_fd()) };
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
             Ok(Device {
-                fd: fd,
+                fd,
                 ffi: Ptr::<::ffi::gbm_device>::new(ptr, |ptr| unsafe { ::ffi::gbm_device_destroy(ptr) }),
             })
         }
@@ -199,7 +199,7 @@ impl<T: AsRawFd + 'static> Device<T> {
             Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
         }
     }
-    
+
     ///  Allocate a buffer object for the given dimensions with explicit modifiers
     pub fn create_buffer_object_with_modifiers<U: 'static>(
         &self,
@@ -226,13 +226,13 @@ impl<T: AsRawFd + 'static> Device<T> {
         }
     }
 
-    /// Create a gbm buffer object from a wayland buffer
+    /// Create a GBM buffer object from a wayland buffer
     ///
-    /// This function imports a foreign `WlBuffer` object and creates a new gbm
+    /// This function imports a foreign [`WlBuffer`] object and creates a new GBM
     /// buffer object for it.
-    /// This enabled using the foreign object with a display API such as KMS.
+    /// This enables using the foreign object with a display API such as KMS.
     ///
-    /// The gbm bo shares the underlying pixels but its life-time is
+    /// The GBM bo shares the underlying pixels but its life-time is
     /// independent of the foreign object.
     #[cfg(feature = "import-wayland")]
     pub fn import_buffer_object_from_wayland<U: 'static>(
@@ -255,18 +255,18 @@ impl<T: AsRawFd + 'static> Device<T> {
         }
     }
 
-    /// Create a gbm buffer object from an egl buffer
+    /// Create a GBM buffer object from an egl buffer
     ///
-    /// This function imports a foreign `EGLImage` object and creates a new gbm
+    /// This function imports a foreign [`EGLImage`] object and creates a new GBM
     /// buffer object for it.
-    /// This enabled using the foreign object with a display API such as KMS.
+    /// This enables using the foreign object with a display API such as KMS.
     ///
-    /// The gbm bo shares the underlying pixels but its life-time is
+    /// The GBM bo shares the underlying pixels but its life-time is
     /// independent of the foreign object.
     ///
-    /// ## Unsafety
+    /// # Safety
     ///
-    /// The given EGLImage is a raw pointer. Passing null or an invalid EGLImage will
+    /// The given [`EGLImage`] is a raw pointer.  Passing null or an invalid [`EGLImage`] will
     /// cause undefined behavior.
     #[cfg(feature = "import-egl")]
     pub unsafe fn import_buffer_object_from_egl<U: 'static>(
@@ -288,13 +288,13 @@ impl<T: AsRawFd + 'static> Device<T> {
         }
     }
 
-    /// Create a gbm buffer object from an dma buffer
+    /// Create a GBM buffer object from a dma buffer
     ///
     /// This function imports a foreign dma buffer from an open file descriptor
-    /// and creates a new gbm buffer object for it.
-    /// This enabled using the foreign object with a display API such as KMS.
+    /// and creates a new GBM buffer object for it.
+    /// This enables using the foreign object with a display API such as KMS.
     ///
-    /// The gbm bo shares the underlying pixels but its life-time is
+    /// The GBM bo shares the underlying pixels but its life-time is
     /// independent of the foreign object.
     pub fn import_buffer_object_from_dma_buf<U: 'static>(
         &self,
@@ -327,14 +327,14 @@ impl<T: AsRawFd + 'static> Device<T> {
             Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
         }
     }
-    
-    /// Create a gbm buffer object from an dma buffer with explicit modifiers
+
+    /// Create a GBM buffer object from a dma buffer with explicit modifiers
     ///
     /// This function imports a foreign dma buffer from an open file descriptor
-    /// and creates a new gbm buffer object for it.
-    /// This enabled using the foreign object with a display API such as KMS.
+    /// and creates a new GBM buffer object for it.
+    /// This enables using the foreign object with a display API such as KMS.
     ///
-    /// The gbm bo shares the underlying pixels but its life-time is
+    /// The GBM bo shares the underlying pixels but its life-time is
     /// independent of the foreign object.
     pub fn import_buffer_object_from_dma_buf_with_modifiers<U: 'static>(
         &self,
@@ -382,12 +382,12 @@ impl<T: DrmDevice + AsRawFd + 'static> DrmDevice for Device<T> {}
 impl<T: DrmControlDevice + AsRawFd + 'static> DrmControlDevice for Device<T> {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-/// Thrown when the underlying gbm device was already destroyed
+/// Thrown when the underlying GBM device was already destroyed
 pub struct DeviceDestroyedError;
 
 impl fmt::Display for DeviceDestroyedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "The underlying gbm device was already destroyed")
+        write!(f, "The underlying GBM device was already destroyed")
     }
 }
 
