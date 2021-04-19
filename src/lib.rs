@@ -129,6 +129,7 @@ impl<T> Drop for PtrDrop<T> {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct Ptr<T>(Arc<PtrDrop<T>>);
 
 impl<T> Ptr<T> {

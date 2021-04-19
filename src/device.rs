@@ -36,6 +36,15 @@ pub struct Device<T: AsRawFd + 'static> {
     ffi: Ptr<::ffi::gbm_device>,
 }
 
+impl<T: AsRawFd + Clone + 'static> Clone for Device<T> {
+    fn clone(&self) -> Device<T> {
+        Device {
+            fd: self.fd.clone(),
+            ffi: self.ffi.clone(),
+        }
+    }
+}
+
 unsafe impl Send for Ptr<::ffi::gbm_device> {}
 
 impl<T: AsRawFd + 'static> AsRawFd for Device<T> {
