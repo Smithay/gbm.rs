@@ -21,3 +21,4 @@ libc = "0.2"
 
 [features]
 gen = ["bindgen"]
+update_bindings = ["gen"]

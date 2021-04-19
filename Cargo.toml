@@ -27,3 +27,8 @@ import-wayland = ["wayland-server"]
 import-egl = []
 drm-support = ["drm"]
 gen = ["gbm-sys/gen"]
+
+[workspace]
+members = [
+  "gbm-sys"
+]
