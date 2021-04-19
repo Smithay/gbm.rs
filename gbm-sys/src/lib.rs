@@ -5,10 +5,8 @@ extern crate libc;
 #[cfg(feature = "gen")]
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
-#[cfg(all(not(feature = "gen"),
-          target_os="linux",
-          target_arch="x86_64"))]
+#[cfg(all(not(feature = "gen"), target_os = "linux", target_arch = "x86_64"))]
 include!(concat!("platforms/linux/x86_64/gen.rs"));
 
 #[link(name = "gbm")]
-extern {}
+extern "C" {}

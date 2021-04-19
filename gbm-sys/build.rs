@@ -10,14 +10,11 @@ use std::path::Path;
 fn main() {}
 
 #[cfg(feature = "gen")]
-fn main()
-{
+fn main() {
     const TMP_BIND_PREFIX: &str = "__BINDGEN_TMP_";
     const TMP_BIND_PREFIX_REG: &str = "_BINDGEN_TMP_.*";
 
-    const INCLUDES: &'static [&str] = &[
-        "gbm.h",
-    ];
+    const INCLUDES: &'static [&str] = &["gbm.h"];
 
     const MACROS: &'static [&str] = &[
         "GBM_BO_IMPORT_WL_BUFFER",
@@ -29,14 +26,12 @@ fn main()
     // Applies a formatting function over a slice of strings,
     // concatenating them on separate lines into a single String
     fn apply_formatting<I, F>(iter: I, f: F) -> String
-        where
+    where
         I: Iterator,
         I::Item: AsRef<str>,
-        F: Fn(&str) -> String
+        F: Fn(&str) -> String,
     {
-        iter.fold(String::new(), | acc, x | {
-            acc + &f(x.as_ref()) + "\n"
-        })
+        iter.fold(String::new(), |acc, x| acc + &f(x.as_ref()) + "\n")
     }
 
     // Create a name for a temporary value
@@ -68,18 +63,18 @@ fn main()
     // Required for some macros that won't get generated
     fn rebind_macro(name: &str) -> String {
         let tmp_name = tmp_val(name);
-        format!("{}\n{}\n{}\n{}",
-                decl_const("unsigned int", &tmp_name, name),
-                undefine_macro(name),
-                decl_const("unsigned int", name, &tmp_name),
-                define_macro(name, name)
+        format!(
+            "{}\n{}\n{}\n{}",
+            decl_const("unsigned int", &tmp_name, name),
+            undefine_macro(name),
+            decl_const("unsigned int", name, &tmp_name),
+            define_macro(name, name)
         )
     }
 
     // Fully create the header
     fn create_header() -> String {
-        apply_formatting(INCLUDES.iter(), include) +
-            &apply_formatting(MACROS.iter(), rebind_macro)
+        apply_formatting(INCLUDES.iter(), include) + &apply_formatting(MACROS.iter(), rebind_macro)
     }
 
     // Setup bindings builder

@@ -99,14 +99,14 @@ extern crate drm_fourcc;
 #[macro_use]
 extern crate bitflags;
 
-mod device;
 mod buffer_object;
+mod device;
 mod surface;
 
-pub use drm_fourcc::{DrmFourcc as Format, DrmModifier as Modifier};
 pub use self::buffer_object::*;
 pub use self::device::*;
 pub use self::surface::*;
+pub use drm_fourcc::{DrmFourcc as Format, DrmModifier as Modifier};
 
 use std::sync::{Arc, Weak};
 
