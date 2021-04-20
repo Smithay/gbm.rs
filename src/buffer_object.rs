@@ -111,8 +111,8 @@ impl<'a, T: 'static> Deref for MappedBufferObject<'a, T> {
     type Target = BufferObject<T>;
     fn deref(&self) -> &BufferObject<T> {
         match &self.bo {
-            &BORef::Ref(bo) => bo,
-            &BORef::Mut(ref bo) => bo,
+            BORef::Ref(bo) => bo,
+            BORef::Mut(bo) => bo,
         }
     }
 }
@@ -120,8 +120,8 @@ impl<'a, T: 'static> Deref for MappedBufferObject<'a, T> {
 impl<'a, T: 'static> DerefMut for MappedBufferObject<'a, T> {
     fn deref_mut(&mut self) -> &mut BufferObject<T> {
         match &mut self.bo {
-            &mut BORef::Ref(_) => unreachable!(),
-            &mut BORef::Mut(ref mut bo) => bo,
+            BORef::Ref(_) => unreachable!(),
+            BORef::Mut(bo) => bo,
         }
     }
 }
@@ -129,8 +129,8 @@ impl<'a, T: 'static> DerefMut for MappedBufferObject<'a, T> {
 impl<'a, T: 'static> Drop for MappedBufferObject<'a, T> {
     fn drop(&mut self) {
         let ffi = match &self.bo {
-            &BORef::Ref(bo) => &bo.ffi,
-            &BORef::Mut(ref bo) => &bo.ffi,
+            BORef::Ref(bo) => &bo.ffi,
+            BORef::Mut(bo) => &bo.ffi,
         };
         unsafe { ::ffi::gbm_bo_unmap(**ffi, self.data) }
     }

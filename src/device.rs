@@ -335,6 +335,7 @@ impl<T: AsRawFd + 'static> Device<T> {
     ///
     /// The GBM bo shares the underlying pixels but its life-time is
     /// independent of the foreign object.
+    #[allow(clippy::too_many_arguments)]
     pub fn import_buffer_object_from_dma_buf_with_modifiers<U: 'static>(
         &self,
         len: u32,
