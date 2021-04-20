@@ -32,9 +32,9 @@ fn main() {
     const TMP_BIND_PREFIX: &str = "__BINDGEN_TMP_";
     const TMP_BIND_PREFIX_REG: &str = "_BINDGEN_TMP_.*";
 
-    const INCLUDES: &'static [&str] = &["gbm.h"];
+    const INCLUDES: &[&str] = &["gbm.h"];
 
-    const MACROS: &'static [&str] = &[
+    const MACROS: &[&str] = &[
         "GBM_BO_IMPORT_WL_BUFFER",
         "GBM_BO_IMPORT_EGL_IMAGE",
         "GBM_BO_IMPORT_FD",
@@ -97,6 +97,7 @@ fn main() {
 
     // Setup bindings builder
     let generated = bindgen::builder()
+        .clang_arg("-Iinclude")
         .header_contents("bindings.h", &create_header())
         .blacklist_type(TMP_BIND_PREFIX_REG)
         .ctypes_prefix("libc")
