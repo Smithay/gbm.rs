@@ -408,7 +408,7 @@ impl<T: 'static> BufferObject<T> {
         let device = self._device.upgrade();
         if device.is_some() {
             let result = unsafe {
-                ::ffi::gbm_bo_write(*self.ffi, buffer.as_ptr() as *const _, buffer.len() as u64)
+                ::ffi::gbm_bo_write(*self.ffi, buffer.as_ptr() as *const _, buffer.len() as _)
             };
             if result != 0 {
                 Ok(Err(IoError::last_os_error()))
