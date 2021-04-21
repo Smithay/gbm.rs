@@ -11,15 +11,28 @@ authors = ["Victor Brekenfeld <github@drakulix.de>"]
 exclude = [".gitignore", ".travis.yml", ".rustfmt.toml", ".github"]
 
 [dependencies]
-gbm-sys = { version = "0.1", path = "./gbm-sys" }
 libc = "0.2"
 bitflags = "1.2"
-wayland-server = { version = "0.28", optional = true }
-drm = { version = "0.4.0-alpha1", git = "https://github.com/Drakulix/drm-rs", branch = "next", optional = true }
 drm-fourcc = "2.0"
 
-[dev-dependencies]
-drm = { version = "0.4.0-alpha1", git = "https://github.com/Drakulix/drm-rs", branch = "next" }
+[dependencies.gbm-sys]
+version = "0.1"
+path = "./gbm-sys"
+
+[dependencies.drm]
+#version = "0.4.0-alpha1"
+git = "https://github.com/Smithay/drm-rs"
+branch = "develop"
+optional = true
+
+[dependencies.wayland-server]
+version = "0.28.5"
+optional = true
+
+[dev-dependencies.drm]
+#version = "0.4.0-alpha1"
+git = "https://github.com/Smithay/drm-rs"
+branch = "develop"
 
 [features]
 default = ["import-wayland", "import-egl", "drm-support"]
