@@ -47,7 +47,7 @@
 //! // ... init your drm device ...
 //! let drm = init_drm_device();
 //!
-//! // init a gbm device
+//! // init a GBM device
 //! let gbm = Device::new(drm).unwrap();
 //!
 //! // create a 4x4 buffer
@@ -110,7 +110,7 @@ pub use self::surface::*;
 
 use std::sync::{Arc, Weak};
 
-/// Trait for types that allow to optain the underlying raw libinput pointer.
+/// Trait for types that allow to obtain the underlying raw libinput pointer.
 pub trait AsRaw<T> {
     /// Receive a raw pointer representing this type.
     fn as_raw(&self) -> *const T;

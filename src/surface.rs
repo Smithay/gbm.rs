@@ -3,7 +3,7 @@ use std::error;
 use std::fmt;
 use std::marker::PhantomData;
 
-/// A gbm rendering surface
+/// A GBM rendering surface
 pub struct Surface<T: 'static> {
     ffi: Ptr<::ffi::gbm_surface>,
     _device: WeakPtr<::ffi::gbm_device>,
@@ -46,9 +46,9 @@ impl<T: 'static> Surface<T> {
     ///  Return whether or not a surface has free (non-locked) buffers
     ///
     /// Before starting a new frame, the surface must have a buffer
-    /// available for rendering.  Initially, a gbm surface will have a free
+    /// available for rendering.  Initially, a GBM surface will have a free
     /// buffer, but after one or more buffers
-    /// [have been locked](#method.lock_front_buffer),
+    /// [have been locked](Self::lock_front_buffer()),
     /// the application must check for a free buffer before rendering.
     pub fn has_free_buffers(&self) -> bool {
         let device = self._device.upgrade();
@@ -62,12 +62,13 @@ impl<T: 'static> Surface<T> {
     /// Lock the surface's current front buffer
     ///
     /// Locks rendering to the surface's current front buffer and returns
-    /// a handle to the underlying `BufferObject`
+    /// a handle to the underlying [`BufferObject`].
     ///
-    /// If an error occurs a `FrontBufferError` is returned.
+    /// If an error occurs a [`FrontBufferError`] is returned.
     ///
-    /// **Unsafety**: This function must be called exactly once after calling
-    /// `eglSwapBuffers`.  Calling it before any `eglSwapBuffer` has happened
+    /// # Safety
+    /// This function must be called exactly once after calling
+    /// `eglSwapBuffers`.  Calling it before any `eglSwapBuffers` has happened
     /// on the surface or two or more times after `eglSwapBuffers` is an
     /// error and may cause undefined behavior.
     pub unsafe fn lock_front_buffer(&self) -> Result<BufferObject<T>, FrontBufferError> {
