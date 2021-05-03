@@ -1,7 +1,7 @@
-use {AsRaw, BufferObject, DeviceDestroyedError, Ptr, WeakPtr};
 use std::error;
 use std::fmt;
 use std::marker::PhantomData;
+use {AsRaw, BufferObject, DeviceDestroyedError, Ptr, WeakPtr};
 
 /// A GBM rendering surface
 pub struct Surface<T: 'static> {
@@ -77,7 +77,7 @@ impl<T: 'static> Surface<T> {
             if ::ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 {
                 let buffer_ptr = ::ffi::gbm_surface_lock_front_buffer(*self.ffi);
                 if !buffer_ptr.is_null() {
-                    let surface_ptr = self.ffi.downgrade().clone();
+                    let surface_ptr = self.ffi.downgrade();
                     let buffer = BufferObject {
                         ffi: Ptr::new(buffer_ptr, move |ptr| {
                             if let Some(surface) = surface_ptr.upgrade() {
@@ -99,7 +99,10 @@ impl<T: 'static> Surface<T> {
         }
     }
 
-    pub(crate) unsafe fn new(ffi: *mut ::ffi::gbm_surface, device: WeakPtr<::ffi::gbm_device>) -> Surface<T> {
+    pub(crate) unsafe fn new(
+        ffi: *mut ::ffi::gbm_surface,
+        device: WeakPtr<::ffi::gbm_device>,
+    ) -> Surface<T> {
         Surface {
             ffi: Ptr::new(ffi, |ptr| ::ffi::gbm_surface_destroy(ptr)),
             _device: device,

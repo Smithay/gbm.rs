@@ -53,7 +53,7 @@
 //! // create a 4x4 buffer
 //! let mut bo = gbm.create_buffer_object::<()>(
 //!             1280, 720,
-//!             Format::ARGB8888,
+//!             Format::Argb8888,
 //!             BufferObjectFlags::SCANOUT | BufferObjectFlags::WRITE,
 //!             ).unwrap();
 //!
@@ -70,7 +70,7 @@
 //! bo.write(&buffer).unwrap();
 //!
 //! // create a framebuffer from our buffer
-//! let fb = gbm.add_framebuffer(&bo).unwrap();
+//! let fb = gbm.add_framebuffer(&bo, 32, 32).unwrap();
 //!
 //! # let res_handles = gbm.resource_handles().unwrap();
 //! # let con = *res_handles.connectors().iter().next().unwrap();
@@ -99,14 +99,14 @@ extern crate drm_fourcc;
 #[macro_use]
 extern crate bitflags;
 
-mod device;
 mod buffer_object;
+mod device;
 mod surface;
 
-pub use drm_fourcc::{DrmFourcc as Format, DrmModifier as Modifier};
 pub use self::buffer_object::*;
 pub use self::device::*;
 pub use self::surface::*;
+pub use drm_fourcc::{DrmFourcc as Format, DrmModifier as Modifier};
 
 use std::sync::{Arc, Weak};
 
