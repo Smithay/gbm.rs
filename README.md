@@ -15,31 +15,34 @@ provided through the `drm-support` feature.
 
 Add to your Cargo.toml
 
-`gbm = "0.2.2"`
+```toml
+gbm = "0.6.0"
+```
 
 ## Example
 
-```rust,no_run
+```rust
 extern crate drm;
 extern crate gbm;
 
-use drm::control::{crtc, framebuffer};
-use gbm::{Device, Format, BufferObjectFlags};
+use drm::control::{self, crtc, framebuffer};
+use gbm::{BufferObjectFlags, Device, Format};
 
 // ... init your drm device ...
 let drm = init_drm_device();
 
-// init a gbm device
+// init a GBM device
 let gbm = Device::new(drm).unwrap();
 
 // create a buffer
-let mut bo = gbm.create_buffer_object::<()>(
-            1280, 720,
-            Format::ARGB8888,
-            &[
-                BufferObjectFlags::Scanout,
-                BufferObjectFlags::Write,
-            ]).unwrap();
+let mut bo = gbm
+    .create_buffer_object::<()>(
+        1280,
+        720,
+        Format::Argb8888,
+        BufferObjectFlags::SCANOUT | BufferObjectFlags::WRITE,
+    )
+    .unwrap();
 
 // write something to it (usually use import or egl rendering instead)
 let buffer = {
@@ -54,8 +57,9 @@ let buffer = {
 bo.write(&buffer).unwrap();
 
 // create a framebuffer from our buffer
-let fb_info = framebuffer::create(&gbm, &bo).unwrap();
+let fb = gbm.add_framebuffer(&bo, 32, 32).unwrap();
 
 // display it (and get a crtc, mode and connector before)
-crtc::set(&gbm, crtc_handle, fb_info.handle(), &[con], (0, 0), Some(mode)).unwrap();
+gbm.set_crtc(crtc_handle, Some(fb), (0, 0), &[con], Some(mode))
+    .unwrap();
 ```

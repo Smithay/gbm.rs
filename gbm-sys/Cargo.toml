@@ -1,6 +1,6 @@
 [package]
 name = "gbm-sys"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Drakulix (Victor Brekenfeld)"]
 build = "build.rs"
 description = "Bindgen generated unsafe libgbm wrapper"
@@ -13,11 +13,13 @@ license = "MIT"
 [lib]
 path = "src/lib.rs"
 
-[build-dependencies]
-bindgen = { version = "0.57", optional = true }
+[build-dependencies.bindgen]
+version = "0.58"
+optional = true
 
 [dependencies]
 libc = "0.2"
 
 [features]
 gen = ["bindgen"]
+update_bindings = ["gen"]
