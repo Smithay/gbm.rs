@@ -14,27 +14,28 @@
 //! ## Example
 //!
 //! ```rust,no_run
-//! extern crate drm;
-//! extern crate gbm;
-//!
-//! use drm::control::{self, crtc, framebuffer};
-//! # use drm::control::Mode;
+//! # extern crate drm;
+//! # extern crate gbm;
 //! # use drm::control::connector::Info as ConnectorInfo;
-//! use gbm::{Device, Format, BufferObjectFlags};
+//! # use drm::control::Mode;
+//! use drm::control::{self, crtc, framebuffer};
+//! use gbm::{BufferObjectFlags, Device, Format};
 //!
-//! # use std::fs::{OpenOptions, File};
+//! # use std::fs::{File, OpenOptions};
 //! # use std::os::unix::io::{AsRawFd, RawFd};
 //! #
-//! # use drm::Device as BasicDevice;
 //! # use drm::control::Device as ControlDevice;
+//! # use drm::Device as BasicDevice;
 //! # struct Card(File);
 //! #
 //! # impl AsRawFd for Card {
-//! #     fn as_raw_fd(&self) -> RawFd { self.0.as_raw_fd() }
+//! #     fn as_raw_fd(&self) -> RawFd {
+//! #         self.0.as_raw_fd()
+//! #     }
 //! # }
 //! #
-//! # impl BasicDevice for Card { }
-//! # impl ControlDevice for Card { }
+//! # impl BasicDevice for Card {}
+//! # impl ControlDevice for Card {}
 //! #
 //! # fn init_drm_device() -> Card {
 //! #     let mut options = OpenOptions::new();
@@ -51,12 +52,14 @@
 //! let gbm = Device::new(drm).unwrap();
 //!
 //! // create a 4x4 buffer
-//! let mut bo = gbm.create_buffer_object::<()>(
-//!             1280, 720,
-//!             Format::Argb8888,
-//!             BufferObjectFlags::SCANOUT | BufferObjectFlags::WRITE,
-//!             ).unwrap();
-//!
+//! let mut bo = gbm
+//!     .create_buffer_object::<()>(
+//!         1280,
+//!         720,
+//!         Format::Argb8888,
+//!         BufferObjectFlags::SCANOUT | BufferObjectFlags::WRITE,
+//!     )
+//!     .unwrap();
 //! // write something to it (usually use import or egl rendering instead)
 //! let buffer = {
 //!     let mut buffer = Vec::new();
@@ -79,7 +82,8 @@
 //! # let mode: Mode = connector_info.modes()[0];
 //! #
 //! // display it (and get a crtc, mode and connector before)
-//! gbm.set_crtc(crtc_handle, Some(fb), (0, 0), &[con], Some(mode)).unwrap();
+//! gbm.set_crtc(crtc_handle, Some(fb), (0, 0), &[con], Some(mode))
+//!     .unwrap();
 //! # }
 //! ```
 
