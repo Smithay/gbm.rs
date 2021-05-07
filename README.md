@@ -16,7 +16,7 @@ provided through the `drm-support` feature.
 Add to your Cargo.toml
 
 ```toml
-gbm = "0.2.2"
+gbm = "0.6.0"
 ```
 
 ## Example

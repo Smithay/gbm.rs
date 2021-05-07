@@ -1,3 +1,12 @@
+## 0.6.0
+
+- Update to drm-rs 0.4
+- Update bindings, add new functionality
+- Make Device clonable
+- Use drm-fourcc for Formats
+- Implement Send where applicable
+- Switch to new std-Error trait
+
 ## 0.5.0
 
 - Make `Surface::lock_front_buffer` unsafe as it may cause segfaults

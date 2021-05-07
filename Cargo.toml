@@ -16,13 +16,11 @@ bitflags = "1.2"
 drm-fourcc = "2.0"
 
 [dependencies.gbm-sys]
-version = "0.1"
+version = "0.2"
 path = "./gbm-sys"
 
 [dependencies.drm]
-#version = "0.4.0-alpha1"
-git = "https://github.com/Smithay/drm-rs"
-branch = "develop"
+version = "0.4.0"
 optional = true
 
 [dependencies.wayland-server]
@@ -30,9 +28,7 @@ version = "0.28.5"
 optional = true
 
 [dev-dependencies.drm]
-#version = "0.4.0-alpha1"
-git = "https://github.com/Smithay/drm-rs"
-branch = "develop"
+version = "0.4.0"
 
 [features]
 default = ["import-wayland", "import-egl", "drm-support"]
