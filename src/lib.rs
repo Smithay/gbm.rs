@@ -60,6 +60,7 @@
 //!         BufferObjectFlags::SCANOUT | BufferObjectFlags::WRITE,
 //!     )
 //!     .unwrap();
+//!
 //! // write something to it (usually use import or egl rendering instead)
 //! let buffer = {
 //!     let mut buffer = Vec::new();
