@@ -19,6 +19,21 @@ pub struct BufferObject<T: 'static> {
     pub(crate) _userdata: PhantomData<T>,
 }
 
+impl<T> fmt::Debug for BufferObject<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("BufferObject")
+            .field("ptr", &format_args!("{:p}", self.ffi))
+            .field("device", &format_args!("{:p}", &self._device))
+            .field("width", &self.width().unwrap_or(0))
+            .field("height", &self.height().unwrap_or(0))
+            .field("offsets", &self.offsets())
+            .field("stride", &self.stride().unwrap_or(0))
+            .field("format", &self.format().ok())
+            .field("modifier", &self.modifier().ok())
+            .finish()
+    }
+}
+
 unsafe impl Send for Ptr<::ffi::gbm_bo> {}
 
 bitflags! {
@@ -66,6 +81,27 @@ pub struct MappedBufferObject<'a, T: 'static> {
     width: u32,
     x: u32,
     y: u32,
+}
+
+impl<'a, T> fmt::Debug for MappedBufferObject<'a, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MappedBufferObject")
+            .field(
+                "mode",
+                &match self.bo {
+                    BORef::Ref(_) => format_args!("read"),
+                    BORef::Mut(_) => format_args!("write"),
+                },
+            )
+            .field(
+                "buffer",
+                match &self.bo {
+                    BORef::Ref(bo) => bo,
+                    BORef::Mut(bo) => &*bo,
+                },
+            )
+            .finish()
+    }
 }
 
 impl<'a, T: 'static> MappedBufferObject<'a, T> {

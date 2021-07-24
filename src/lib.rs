@@ -86,7 +86,7 @@
 //!     .unwrap();
 //! # }
 //! ```
-
+#![warn(missing_debug_implementations)]
 #![deny(missing_docs)]
 
 extern crate gbm_sys as ffi;
@@ -112,6 +112,7 @@ pub use self::device::*;
 pub use self::surface::*;
 pub use drm_fourcc::{DrmFourcc as Format, DrmModifier as Modifier};
 
+use std::fmt;
 use std::sync::{Arc, Weak};
 
 /// Trait for types that allow to obtain the underlying raw libinput pointer.
@@ -154,12 +155,27 @@ impl<T> std::ops::Deref for Ptr<T> {
     }
 }
 
+impl<T> fmt::Pointer for Ptr<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        fmt::Pointer::fmt(&self.0 .0, f)
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct WeakPtr<T>(Weak<PtrDrop<T>>);
 
 impl<T> WeakPtr<T> {
     fn upgrade(&self) -> Option<Ptr<T>> {
         self.0.upgrade().map(Ptr)
+    }
+}
+
+impl<T> fmt::Pointer for WeakPtr<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        match self.upgrade() {
+            Some(x) => fmt::Pointer::fmt(&x, f),
+            None => fmt::Pointer::fmt(&std::ptr::null::<T>(), f),
+        }
     }
 }
 
