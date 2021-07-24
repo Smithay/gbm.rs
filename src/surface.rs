@@ -10,6 +10,15 @@ pub struct Surface<T: 'static> {
     _bo_userdata: PhantomData<T>,
 }
 
+impl<T: 'static> fmt::Debug for Surface<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Surface")
+            .field("ptr", &format_args!("{:p}", &self.ffi))
+            .field("device", &format_args!("{:p}", &self._device))
+            .finish()
+    }
+}
+
 unsafe impl Send for Ptr<::ffi::gbm_surface> {}
 
 /// Errors that may happen when locking the front buffer

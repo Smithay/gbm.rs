@@ -22,6 +22,7 @@ use drm::control::Device as DrmControlDevice;
 use drm::Device as DrmDevice;
 
 /// Type wrapping a foreign file destructor
+#[derive(Debug)]
 pub struct FdWrapper(RawFd);
 
 impl AsRawFd for FdWrapper {
@@ -34,6 +35,14 @@ impl AsRawFd for FdWrapper {
 pub struct Device<T: AsRawFd + 'static> {
     fd: T,
     ffi: Ptr<::ffi::gbm_device>,
+}
+
+impl<T: AsRawFd + 'static> fmt::Debug for Device<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Device")
+            .field("ptr", &format_args!("{:p}", &self.ffi))
+            .finish()
+    }
 }
 
 impl<T: AsRawFd + Clone + 'static> Clone for Device<T> {

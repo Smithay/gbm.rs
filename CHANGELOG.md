@@ -1,3 +1,7 @@
+## 0.7.0
+
+- Update to drm-rs 0.5
+
 ## 0.6.0
 
 - Update to drm-rs 0.4
