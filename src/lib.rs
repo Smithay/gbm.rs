@@ -78,7 +78,7 @@
 //! # let res_handles = gbm.resource_handles().unwrap();
 //! # let con = *res_handles.connectors().iter().next().unwrap();
 //! # let crtc_handle = *res_handles.crtcs().iter().next().unwrap();
-//! # let connector_info: ConnectorInfo = gbm.get_connector(con).unwrap();
+//! # let connector_info: ConnectorInfo = gbm.get_connector(con, false).unwrap();
 //! # let mode: Mode = connector_info.modes()[0];
 //! #
 //! // display it (and get a crtc, mode and connector before)
