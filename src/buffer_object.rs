@@ -34,8 +34,6 @@ impl<T> fmt::Debug for BufferObject<T> {
     }
 }
 
-unsafe impl Send for Ptr<::ffi::gbm_bo> {}
-
 bitflags! {
     /// Flags to indicate the intended use for the buffer - these are passed into
     /// [`Device::create_buffer_object()`].

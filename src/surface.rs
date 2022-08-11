@@ -19,8 +19,6 @@ impl<T: 'static> fmt::Debug for Surface<T> {
     }
 }
 
-unsafe impl Send for Ptr<::ffi::gbm_surface> {}
-
 /// Errors that may happen when locking the front buffer
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrontBufferError {

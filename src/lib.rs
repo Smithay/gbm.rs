@@ -136,6 +136,9 @@ impl<T> Drop for PtrDrop<T> {
 
 #[derive(Clone)]
 pub(crate) struct Ptr<T>(Arc<PtrDrop<T>>);
+// SAFETY: The types used with Ptr in this crate are all Send (namely gbm_device, gbm_surface and gbm_bo).
+// The type is private and can thus not be used unsoundly by other crates.
+unsafe impl<T> Send for Ptr<T> {}
 
 impl<T> Ptr<T> {
     fn new<F: FnOnce(*mut T) + Send + 'static>(ptr: *mut T, destructor: F) -> Ptr<T> {

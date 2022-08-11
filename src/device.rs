@@ -54,8 +54,6 @@ impl<T: AsRawFd + Clone + 'static> Clone for Device<T> {
     }
 }
 
-unsafe impl Send for Ptr<::ffi::gbm_device> {}
-
 impl<T: AsRawFd + 'static> AsRawFd for Device<T> {
     fn as_raw_fd(&self) -> RawFd {
         unsafe { ::ffi::gbm_device_get_fd(*self.ffi) }
