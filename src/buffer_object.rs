@@ -94,8 +94,8 @@ impl<'a, T> fmt::Debug for MappedBufferObject<'a, T> {
             .field(
                 "buffer",
                 match &self.bo {
-                    BORef::Ref(bo) => bo,
-                    BORef::Mut(bo) => &*bo,
+                    BORef::Ref(bo) => *bo,
+                    BORef::Mut(bo) => *bo,
                 },
             )
             .finish()
