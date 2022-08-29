@@ -34,8 +34,6 @@ impl<T> fmt::Debug for BufferObject<T> {
     }
 }
 
-unsafe impl Send for Ptr<::ffi::gbm_bo> {}
-
 bitflags! {
     /// Flags to indicate the intended use for the buffer - these are passed into
     /// [`Device::create_buffer_object()`].
@@ -96,8 +94,8 @@ impl<'a, T> fmt::Debug for MappedBufferObject<'a, T> {
             .field(
                 "buffer",
                 match &self.bo {
-                    BORef::Ref(bo) => bo,
-                    BORef::Mut(bo) => &*bo,
+                    BORef::Ref(bo) => *bo,
+                    BORef::Mut(bo) => *bo,
                 },
             )
             .finish()
@@ -299,6 +297,21 @@ impl<T: 'static> BufferObject<T> {
         let device = self._device.upgrade();
         if device.is_some() {
             Ok(unsafe { ::ffi::gbm_bo_get_handle(*self.ffi) })
+        } else {
+            Err(DeviceDestroyedError)
+        }
+    }
+
+    /// Get a DMA-BUF file descriptor for a plane of the buffer object
+    ///
+    /// This function creates a DMA-BUF (also known as PRIME) file descriptor
+    /// handle for a plane of the buffer object. Each call to [`Self::fd_for_plane()`]
+    /// returns a new file descriptor and the caller is responsible for closing
+    /// the file descriptor.
+    pub fn fd_for_plane(&self, plane: i32) -> Result<RawFd, DeviceDestroyedError> {
+        let device = self._device.upgrade();
+        if device.is_some() {
+            Ok(unsafe { ::ffi::gbm_bo_get_fd_for_plane(*self.ffi, plane) })
         } else {
             Err(DeviceDestroyedError)
         }

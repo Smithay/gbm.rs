@@ -54,8 +54,6 @@ impl<T: AsRawFd + Clone + 'static> Clone for Device<T> {
     }
 }
 
-unsafe impl Send for Ptr<::ffi::gbm_device> {}
-
 impl<T: AsRawFd + 'static> AsRawFd for Device<T> {
     fn as_raw_fd(&self) -> RawFd {
         unsafe { ::ffi::gbm_device_get_fd(*self.ffi) }
@@ -189,6 +187,37 @@ impl<T: AsRawFd + 'static> Device<T> {
         }
     }
 
+    /// Allocate a new surface object with explicit modifiers and flags
+    pub fn create_surface_with_modifiers2<U: 'static>(
+        &self,
+        width: u32,
+        height: u32,
+        format: Format,
+        modifiers: impl Iterator<Item = Modifier>,
+        usage: BufferObjectFlags,
+    ) -> IoResult<Surface<U>> {
+        let mods = modifiers
+            .take(::ffi::GBM_MAX_PLANES as usize)
+            .map(|m| m.into())
+            .collect::<Vec<u64>>();
+        let ptr = unsafe {
+            ::ffi::gbm_surface_create_with_modifiers2(
+                *self.ffi,
+                width,
+                height,
+                format as u32,
+                mods.as_ptr(),
+                mods.len() as u32,
+                usage.bits(),
+            )
+        };
+        if ptr.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(unsafe { Surface::new(ptr, self.ffi.downgrade()) })
+        }
+    }
+
     ///  Allocate a buffer object for the given dimensions
     pub fn create_buffer_object<U: 'static>(
         &self,
@@ -226,6 +255,37 @@ impl<T: AsRawFd + 'static> Device<T> {
                 format as u32,
                 mods.as_ptr(),
                 mods.len() as u32,
+            )
+        };
+        if ptr.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
+        }
+    }
+
+    ///  Allocate a buffer object for the given dimensions with explicit modifiers and flags
+    pub fn create_buffer_object_with_modifiers2<U: 'static>(
+        &self,
+        width: u32,
+        height: u32,
+        format: Format,
+        modifiers: impl Iterator<Item = Modifier>,
+        usage: BufferObjectFlags,
+    ) -> IoResult<BufferObject<U>> {
+        let mods = modifiers
+            .take(::ffi::GBM_MAX_PLANES as usize)
+            .map(|m| m.into())
+            .collect::<Vec<u64>>();
+        let ptr = unsafe {
+            ::ffi::gbm_bo_create_with_modifiers2(
+                *self.ffi,
+                width,
+                height,
+                format as u32,
+                mods.as_ptr(),
+                mods.len() as u32,
+                usage.bits(),
             )
         };
         if ptr.is_null() {
