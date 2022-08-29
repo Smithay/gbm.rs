@@ -175,7 +175,7 @@ extern "C" {
     pub fn gbm_device_is_format_supported(
         gbm: *mut gbm_device,
         format: u32,
-        usage: u32,
+        flags: u32,
     ) -> libc::c_int;
 }
 extern "C" {
@@ -208,6 +208,17 @@ extern "C" {
         format: u32,
         modifiers: *const u64,
         count: libc::c_uint,
+    ) -> *mut gbm_bo;
+}
+extern "C" {
+    pub fn gbm_bo_create_with_modifiers2(
+        gbm: *mut gbm_device,
+        width: u32,
+        height: u32,
+        format: u32,
+        modifiers: *const u64,
+        count: libc::c_uint,
+        flags: u32,
     ) -> *mut gbm_bo;
 }
 #[repr(C)]
@@ -406,7 +417,7 @@ extern "C" {
         gbm: *mut gbm_device,
         type_: u32,
         buffer: *mut libc::c_void,
-        usage: u32,
+        flags: u32,
     ) -> *mut gbm_bo;
 }
 pub mod gbm_bo_transfer_flags {
@@ -483,6 +494,9 @@ extern "C" {
     pub fn gbm_bo_get_handle_for_plane(bo: *mut gbm_bo, plane: libc::c_int) -> gbm_bo_handle;
 }
 extern "C" {
+    pub fn gbm_bo_get_fd_for_plane(bo: *mut gbm_bo, plane: libc::c_int) -> libc::c_int;
+}
+extern "C" {
     pub fn gbm_bo_write(bo: *mut gbm_bo, buf: *const libc::c_void, count: size_t) -> libc::c_int;
 }
 extern "C" {
@@ -517,6 +531,17 @@ extern "C" {
         format: u32,
         modifiers: *const u64,
         count: libc::c_uint,
+    ) -> *mut gbm_surface;
+}
+extern "C" {
+    pub fn gbm_surface_create_with_modifiers2(
+        gbm: *mut gbm_device,
+        width: u32,
+        height: u32,
+        format: u32,
+        modifiers: *const u64,
+        count: libc::c_uint,
+        flags: u32,
     ) -> *mut gbm_surface;
 }
 extern "C" {
