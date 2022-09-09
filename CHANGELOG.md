@@ -1,3 +1,7 @@
+## Unreleased
+
+- Update `wayland-rs` to 0.30
+
 ## 0.8.0
 
 - Update to drm-rs 0.6
