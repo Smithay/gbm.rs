@@ -21,7 +21,7 @@ version = "0.2.1"
 path = "./gbm-sys"
 
 [dependencies.drm]
-version = "0.7.0"
+ version = "0.8.0"
 optional = true
 
 [dependencies.wayland-server]
@@ -34,7 +34,7 @@ features = ["server_system"]
 optional = true
 
 [dev-dependencies.drm]
-version = "0.7.0"
+ version = "0.8.0"
 
 [features]
 default = ["import-wayland", "import-egl", "drm-support"]

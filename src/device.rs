@@ -1,13 +1,14 @@
 use crate::{AsRaw, BufferObject, BufferObjectFlags, Format, Modifier, Ptr, Surface};
 
 use libc::c_void;
+use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd};
 
 use std::error;
 use std::ffi::CStr;
 use std::fmt;
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::RawFd;
 
 #[cfg(feature = "import-wayland")]
 use wayland_server::protocol::wl_buffer::WlBuffer;
@@ -21,23 +22,14 @@ use drm::control::Device as DrmControlDevice;
 #[cfg(feature = "drm-support")]
 use drm::Device as DrmDevice;
 
-/// Type wrapping a foreign file destructor
-#[derive(Debug)]
-pub struct FdWrapper(RawFd);
-
-impl AsRawFd for FdWrapper {
-    fn as_raw_fd(&self) -> RawFd {
-        self.0
-    }
-}
-
 /// An open GBM device
-pub struct Device<T: AsRawFd + 'static> {
-    fd: T,
+pub struct Device<T: AsFd> {
+    // Declare `ffi` first so it is dropped before `fd`
     ffi: Ptr<ffi::gbm_device>,
+    fd: T,
 }
 
-impl<T: AsRawFd + 'static> fmt::Debug for Device<T> {
+impl<T: AsFd> fmt::Debug for Device<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Device")
             .field("ptr", &format_args!("{:p}", &self.ffi))
@@ -45,7 +37,7 @@ impl<T: AsRawFd + 'static> fmt::Debug for Device<T> {
     }
 }
 
-impl<T: AsRawFd + Clone + 'static> Clone for Device<T> {
+impl<T: AsFd + Clone> Clone for Device<T> {
     fn clone(&self) -> Device<T> {
         Device {
             fd: self.fd.clone(),
@@ -54,64 +46,39 @@ impl<T: AsRawFd + Clone + 'static> Clone for Device<T> {
     }
 }
 
-impl<T: AsRawFd + 'static> AsRawFd for Device<T> {
-    fn as_raw_fd(&self) -> RawFd {
-        unsafe { ffi::gbm_device_get_fd(*self.ffi) }
+impl<T: AsFd> AsFd for Device<T> {
+    fn as_fd(&self) -> BorrowedFd {
+        unsafe { BorrowedFd::borrow_raw(ffi::gbm_device_get_fd(*self.ffi)) }
     }
 }
 
-impl<T: AsRawFd + 'static> AsRaw<ffi::gbm_device> for Device<T> {
+impl<T: AsFd> AsRaw<ffi::gbm_device> for Device<T> {
     fn as_raw(&self) -> *const ffi::gbm_device {
         *self.ffi
     }
 }
 
-impl<T: AsRawFd + 'static> Deref for Device<T> {
+impl<T: AsFd> Deref for Device<T> {
     type Target = T;
     fn deref(&self) -> &T {
         &self.fd
     }
 }
 
-impl<T: AsRawFd + 'static> DerefMut for Device<T> {
+impl<T: AsFd> DerefMut for Device<T> {
     fn deref_mut(&mut self) -> &mut T {
         &mut self.fd
     }
 }
 
-impl Device<FdWrapper> {
-    /// Open a GBM device from a given unix file descriptor.
-    ///
-    /// The file descriptor passed in is used by the backend to communicate with
-    /// platform for allocating the memory.  For allocations using DRI this would be
-    /// the file descriptor returned when opening a device such as `/dev/dri/card0`.
-    ///
-    /// # Safety
-    ///
-    /// The lifetime of the resulting device depends on the ownership of the file descriptor.
-    /// Closing the file descriptor before dropping the Device will lead to undefined behavior.
-    ///
-    pub unsafe fn new_from_fd(fd: RawFd) -> IoResult<Device<FdWrapper>> {
-        let ptr = ffi::gbm_create_device(fd);
-        if ptr.is_null() {
-            Err(IoError::last_os_error())
-        } else {
-            Ok(Device {
-                fd: FdWrapper(fd),
-                ffi: Ptr::new(ptr, |ptr| ffi::gbm_device_destroy(ptr)),
-            })
-        }
-    }
-}
-
-impl<T: AsRawFd + 'static> Device<T> {
+impl<T: AsFd> Device<T> {
     /// Open a GBM device from a given open DRM device.
     ///
     /// The underlying file descriptor passed in is used by the backend to communicate with
     /// platform for allocating the memory.  For allocations using DRI this would be
     /// the file descriptor returned when opening a device such as `/dev/dri/card0`.
     pub fn new(fd: T) -> IoResult<Device<T>> {
-        let ptr = unsafe { ffi::gbm_create_device(fd.as_raw_fd()) };
+        let ptr = unsafe { ffi::gbm_create_device(fd.as_fd().as_raw_fd()) };
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
@@ -445,10 +412,10 @@ impl<T: AsRawFd + 'static> Device<T> {
 }
 
 #[cfg(feature = "drm-support")]
-impl<T: DrmDevice + AsRawFd + 'static> DrmDevice for Device<T> {}
+impl<T: DrmDevice + AsFd> DrmDevice for Device<T> {}
 
 #[cfg(feature = "drm-support")]
-impl<T: DrmControlDevice + AsRawFd + 'static> DrmControlDevice for Device<T> {}
+impl<T: DrmControlDevice + AsFd> DrmControlDevice for Device<T> {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Thrown when the underlying GBM device was already destroyed

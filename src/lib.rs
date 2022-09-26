@@ -22,15 +22,15 @@
 //! use gbm::{BufferObjectFlags, Device, Format};
 //!
 //! # use std::fs::{File, OpenOptions};
-//! # use std::os::unix::io::{AsRawFd, RawFd};
+//! # use std::os::unix::io::{AsFd, BorrowedFd, RawFd};
 //! #
 //! # use drm::control::Device as ControlDevice;
 //! # use drm::Device as BasicDevice;
 //! # struct Card(File);
 //! #
-//! # impl AsRawFd for Card {
-//! #     fn as_raw_fd(&self) -> RawFd {
-//! #         self.0.as_raw_fd()
+//! # impl AsFd for Card {
+//! #     fn as_fd(&self) -> BorrowedFd {
+//! #         self.0.as_fd()
 //! #     }
 //! # }
 //! #
@@ -186,18 +186,20 @@ unsafe impl<T> Send for WeakPtr<T> where Ptr<T>: Send {}
 
 #[cfg(test)]
 mod test {
+    use std::os::unix::io::OwnedFd;
+
     fn is_send<T: Send>() {}
 
     #[test]
     fn device_is_send() {
         is_send::<super::Device<std::fs::File>>();
-        is_send::<super::Device<super::FdWrapper>>();
+        is_send::<super::Device<OwnedFd>>();
     }
 
     #[test]
     fn surface_is_send() {
         is_send::<super::Surface<std::fs::File>>();
-        is_send::<super::Surface<super::FdWrapper>>();
+        is_send::<super::Surface<OwnedFd>>();
     }
 
     #[test]

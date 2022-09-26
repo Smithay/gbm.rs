@@ -2,13 +2,14 @@ use crate::{AsRaw, Device, DeviceDestroyedError, Format, Modifier, Ptr, WeakPtr}
 
 #[cfg(feature = "drm-support")]
 use drm::buffer::{Buffer as DrmBuffer, Handle, PlanarBuffer as DrmPlanarBuffer};
+use std::os::unix::io::{AsFd, OwnedFd};
 
 use std::error;
 use std::fmt;
 use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::FromRawFd;
 use std::ptr;
 use std::slice;
 
@@ -279,10 +280,10 @@ impl<T: 'static> BufferObject<T> {
     /// handle for the buffer object.  Each call to [`Self::fd()`] returns a new
     /// file descriptor and the caller is responsible for closing the file
     /// descriptor.
-    pub fn fd(&self) -> Result<RawFd, DeviceDestroyedError> {
+    pub fn fd(&self) -> Result<OwnedFd, DeviceDestroyedError> {
         let device = self._device.upgrade();
         if device.is_some() {
-            Ok(unsafe { ffi::gbm_bo_get_fd(*self.ffi) })
+            Ok(unsafe { OwnedFd::from_raw_fd(ffi::gbm_bo_get_fd(*self.ffi)) })
         } else {
             Err(DeviceDestroyedError)
         }
@@ -307,10 +308,10 @@ impl<T: 'static> BufferObject<T> {
     /// handle for a plane of the buffer object. Each call to [`Self::fd_for_plane()`]
     /// returns a new file descriptor and the caller is responsible for closing
     /// the file descriptor.
-    pub fn fd_for_plane(&self, plane: i32) -> Result<RawFd, DeviceDestroyedError> {
+    pub fn fd_for_plane(&self, plane: i32) -> Result<OwnedFd, DeviceDestroyedError> {
         let device = self._device.upgrade();
         if device.is_some() {
-            Ok(unsafe { ffi::gbm_bo_get_fd_for_plane(*self.ffi, plane) })
+            Ok(unsafe { OwnedFd::from_raw_fd(ffi::gbm_bo_get_fd_for_plane(*self.ffi, plane)) })
         } else {
             Err(DeviceDestroyedError)
         }
@@ -342,7 +343,7 @@ impl<T: 'static> BufferObject<T> {
         f: F,
     ) -> Result<IoResult<S>, WrongDeviceError>
     where
-        D: AsRawFd + 'static,
+        D: AsFd + 'static,
         F: FnOnce(&MappedBufferObject<'a, T>) -> S,
     {
         let device_ref = self._device.upgrade();
@@ -400,7 +401,7 @@ impl<T: 'static> BufferObject<T> {
         f: F,
     ) -> Result<IoResult<S>, WrongDeviceError>
     where
-        D: AsRawFd + 'static,
+        D: AsFd + 'static,
         F: FnOnce(&mut MappedBufferObject<'a, T>) -> S,
     {
         let device_ref = self._device.upgrade();
@@ -565,12 +566,6 @@ impl<T: 'static> BufferObject<T> {
             _device: device,
             _userdata: PhantomData,
         }
-    }
-}
-
-impl<T: 'static> AsRawFd for BufferObject<T> {
-    fn as_raw_fd(&self) -> RawFd {
-        unsafe { ffi::gbm_bo_get_fd(*self.ffi) }
     }
 }
 
