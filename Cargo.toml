@@ -9,6 +9,7 @@ keywords = ["wayland", "gbm", "drm", "bindings"]
 categories = ["external-ffi-bindings"]
 authors = ["Victoria Brekenfeld <github@drakulix.de>"]
 exclude = [".gitignore", ".travis.yml", ".rustfmt.toml", ".github"]
+edition = "2021"
 
 [dependencies]
 libc = "0.2"

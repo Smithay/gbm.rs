@@ -1,12 +1,12 @@
+use crate::{AsRaw, BufferObject, DeviceDestroyedError, Ptr, WeakPtr};
 use std::error;
 use std::fmt;
 use std::marker::PhantomData;
-use {AsRaw, BufferObject, DeviceDestroyedError, Ptr, WeakPtr};
 
 /// A GBM rendering surface
 pub struct Surface<T: 'static> {
-    ffi: Ptr<::ffi::gbm_surface>,
-    _device: WeakPtr<::ffi::gbm_device>,
+    ffi: Ptr<ffi::gbm_surface>,
+    _device: WeakPtr<ffi::gbm_device>,
     _bo_userdata: PhantomData<T>,
 }
 
@@ -60,7 +60,7 @@ impl<T: 'static> Surface<T> {
     pub fn has_free_buffers(&self) -> bool {
         let device = self._device.upgrade();
         if device.is_some() {
-            unsafe { ::ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 }
+            unsafe { ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 }
         } else {
             false
         }
@@ -81,14 +81,14 @@ impl<T: 'static> Surface<T> {
     pub unsafe fn lock_front_buffer(&self) -> Result<BufferObject<T>, FrontBufferError> {
         let device = self._device.upgrade();
         if device.is_some() {
-            if ::ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 {
-                let buffer_ptr = ::ffi::gbm_surface_lock_front_buffer(*self.ffi);
+            if ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 {
+                let buffer_ptr = ffi::gbm_surface_lock_front_buffer(*self.ffi);
                 if !buffer_ptr.is_null() {
                     let surface_ptr = self.ffi.downgrade();
                     let buffer = BufferObject {
                         ffi: Ptr::new(buffer_ptr, move |ptr| {
                             if let Some(surface) = surface_ptr.upgrade() {
-                                ::ffi::gbm_surface_release_buffer(*surface, ptr);
+                                ffi::gbm_surface_release_buffer(*surface, ptr);
                             }
                         }),
                         _device: self._device.clone(),
@@ -107,19 +107,19 @@ impl<T: 'static> Surface<T> {
     }
 
     pub(crate) unsafe fn new(
-        ffi: *mut ::ffi::gbm_surface,
-        device: WeakPtr<::ffi::gbm_device>,
+        ffi: *mut ffi::gbm_surface,
+        device: WeakPtr<ffi::gbm_device>,
     ) -> Surface<T> {
         Surface {
-            ffi: Ptr::new(ffi, |ptr| ::ffi::gbm_surface_destroy(ptr)),
+            ffi: Ptr::new(ffi, |ptr| ffi::gbm_surface_destroy(ptr)),
             _device: device,
             _bo_userdata: PhantomData,
         }
     }
 }
 
-impl<T: 'static> AsRaw<::ffi::gbm_surface> for Surface<T> {
-    fn as_raw(&self) -> *const ::ffi::gbm_surface {
+impl<T: 'static> AsRaw<ffi::gbm_surface> for Surface<T> {
+    fn as_raw(&self) -> *const ffi::gbm_surface {
         *self.ffi
     }
 }
