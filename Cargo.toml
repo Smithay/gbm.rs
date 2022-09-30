@@ -9,6 +9,7 @@ keywords = ["wayland", "gbm", "drm", "bindings"]
 categories = ["external-ffi-bindings"]
 authors = ["Victoria Brekenfeld <github@drakulix.de>"]
 exclude = [".gitignore", ".travis.yml", ".rustfmt.toml", ".github"]
+build = "build.rs"
 
 [dependencies]
 libc = "0.2"
@@ -30,12 +31,17 @@ optional = true
 [dev-dependencies.drm]
 version = "0.7.0"
 
+[build-dependencies.cc]
+version = "1.0"
+optional = true
+
 [features]
-default = ["import-wayland", "import-egl", "drm-support"]
+default = ["import-wayland", "import-egl", "drm-support", "auto-detect"]
 import-wayland = ["wayland-server"]
 import-egl = []
 drm-support = ["drm"]
 gen = ["gbm-sys/gen"]
+auto-detect = ["cc"]
 
 [workspace]
 members = [

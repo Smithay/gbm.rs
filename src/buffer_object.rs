@@ -308,13 +308,25 @@ impl<T: 'static> BufferObject<T> {
     /// handle for a plane of the buffer object. Each call to [`Self::fd_for_plane()`]
     /// returns a new file descriptor and the caller is responsible for closing
     /// the file descriptor.
-    pub fn fd_for_plane(&self, plane: i32) -> Result<RawFd, DeviceDestroyedError> {
+    #[cfg(any(HAS_GBM_BO_GET_FD_FOR_PLANE, not(feature = "auto-detect")))]
+    pub fn fd_for_plane(&self, plane: i32) -> Result<RawFd, PlaneFdError> {
         let device = self._device.upgrade();
         if device.is_some() {
             Ok(unsafe { ::ffi::gbm_bo_get_fd_for_plane(*self.ffi, plane) })
         } else {
-            Err(DeviceDestroyedError)
+            Err(PlaneFdError::Destroyed(DeviceDestroyedError))
         }
+    }
+
+    /// Get a DMA-BUF file descriptor for a plane of the buffer object
+    ///
+    /// This function creates a DMA-BUF (also known as PRIME) file descriptor
+    /// handle for a plane of the buffer object. Each call to [`Self::fd_for_plane()`]
+    /// returns a new file descriptor and the caller is responsible for closing
+    /// the file descriptor.
+    #[cfg(all(not(HAS_GBM_BO_GET_FD_FOR_PLANE), feature = "auto-detect"))]
+    pub fn fd_for_plane(&self, plane: i32) -> Result<RawFd, PlaneFdError> {
+        Err(PlaneFdError::Unsupported)
     }
 
     /// Get the handle of a plane of the buffer object
@@ -725,5 +737,34 @@ impl fmt::Display for WrongDeviceError {
 impl error::Error for WrongDeviceError {
     fn cause(&self) -> Option<&dyn error::Error> {
         None
+    }
+}
+
+/// Error for [`BufferObject::fd_for_plane`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaneFdError {
+    /// Thrown when the underlying GBM device was already destroyed
+    Destroyed(DeviceDestroyedError),
+    /// Thrown when the function is not supported on this platform
+    Unsupported,
+}
+
+impl fmt::Display for PlaneFdError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PlaneFdError::Destroyed(e) => fmt::Display::fmt(e, f),
+            PlaneFdError::Unsupported => {
+                write!(f, "The gbm device does not support fd_for_plane")
+            }
+        }
+    }
+}
+
+impl error::Error for PlaneFdError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            PlaneFdError::Destroyed(e) => e.source(),
+            PlaneFdError::Unsupported => None,
+        }
     }
 }
