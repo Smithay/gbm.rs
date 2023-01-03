@@ -1,4 +1,4 @@
-## Unreleased
+## 0.11.0
 
 - Test for `-1` in fd and fd_for_plane
 
@@ -7,6 +7,7 @@
 - Update `wayland-rs` to 0.30
 - Use io-safe types over `RawFd`
 - Update to drm-rs 0.8
+- YANKED: No errors for fd-methods, use 0.11.0
 
 ## 0.9.0
 
