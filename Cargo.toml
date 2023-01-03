@@ -24,7 +24,12 @@ version = "0.7.0"
 optional = true
 
 [dependencies.wayland-server]
-version = "0.28.5"
+version = "0.30"
+optional = true
+
+[dependencies.wayland-backend]
+version = "0.1"
+features = ["server_system"]
 optional = true
 
 [dev-dependencies.drm]
@@ -32,7 +37,7 @@ version = "0.7.0"
 
 [features]
 default = ["import-wayland", "import-egl", "drm-support"]
-import-wayland = ["wayland-server"]
+import-wayland = ["wayland-server", "wayland-backend"]
 import-egl = []
 drm-support = ["drm"]
 gen = ["gbm-sys/gen"]

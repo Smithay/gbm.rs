@@ -309,11 +309,13 @@ impl<T: AsRawFd + 'static> Device<T> {
         buffer: &WlBuffer,
         usage: BufferObjectFlags,
     ) -> IoResult<BufferObject<U>> {
+        use wayland_server::Resource;
+
         let ptr = unsafe {
             ::ffi::gbm_bo_import(
                 *self.ffi,
                 ::ffi::GBM_BO_IMPORT_WL_BUFFER as u32,
-                buffer.as_ref().c_ptr() as *mut _,
+                buffer.id().as_ptr() as *mut _,
                 usage.bits(),
             )
         };
