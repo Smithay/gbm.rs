@@ -1,6 +1,12 @@
-## Unreleased
+## 0.10.0
 
 - Update `wayland-rs` to 0.30
+- Use io-safe types over `RawFd`
+- Update to drm-rs 0.8
+
+## 0.9.0
+
+- Update to drm-rs 0.7
 
 ## 0.8.0
 
