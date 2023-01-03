@@ -1,6 +1,6 @@
 [package]
 name = "gbm-sys"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Drakulix (Victor Brekenfeld)"]
 build = "build.rs"
 description = "Bindgen generated unsafe libgbm wrapper"
