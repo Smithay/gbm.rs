@@ -1,3 +1,7 @@
+## Unreleased
+
+- Test for `-1` in fd and fd_for_plane
+
 ## 0.10.0
 
 - Update `wayland-rs` to 0.30
