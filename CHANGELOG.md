@@ -1,3 +1,7 @@
+## 0.12.0
+
+- Update to drm-rs 0.9
+
 ## 0.11.0
 
 - Test for `-1` in fd and fd_for_plane
