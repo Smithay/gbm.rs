@@ -1,3 +1,8 @@
+## 0.13.0
+
+- Update to drm-rs 0.10
+- Update wayland-server to 0.31
+
 ## 0.12.0
 
 - Update to drm-rs 0.9
