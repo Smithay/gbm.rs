@@ -545,7 +545,7 @@ impl<T: 'static> DrmPlanarBuffer for BufferObject<T> {
     }
     fn modifier(&self) -> Option<Modifier> {
         Some(BufferObject::<T>::modifier(self).expect("GbmDevice does not exist anymore"))
-    }    
+    }
     fn pitches(&self) -> [u32; 4] {
         let num = self
             .plane_count()
