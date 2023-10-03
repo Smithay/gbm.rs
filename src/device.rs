@@ -8,7 +8,6 @@ use std::ffi::CStr;
 use std::fmt;
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
-use std::os::unix::io::RawFd;
 
 #[cfg(feature = "import-wayland")]
 use wayland_server::protocol::wl_buffer::WlBuffer;
@@ -333,7 +332,7 @@ impl<T: AsFd> Device<T> {
     /// independent of the foreign object.
     pub fn import_buffer_object_from_dma_buf<U: 'static>(
         &self,
-        buffer: RawFd,
+        buffer: BorrowedFd<'_>,
         width: u32,
         height: u32,
         stride: u32,
@@ -341,7 +340,7 @@ impl<T: AsFd> Device<T> {
         usage: BufferObjectFlags,
     ) -> IoResult<BufferObject<U>> {
         let mut fd_data = ffi::gbm_import_fd_data {
-            fd: buffer,
+            fd: buffer.as_raw_fd(),
             width,
             height,
             stride,
@@ -375,7 +374,7 @@ impl<T: AsFd> Device<T> {
     pub fn import_buffer_object_from_dma_buf_with_modifiers<U: 'static>(
         &self,
         len: u32,
-        buffers: [RawFd; 4],
+        buffers: [Option<BorrowedFd<'_>>; 4],
         width: u32,
         height: u32,
         format: Format,
@@ -384,8 +383,9 @@ impl<T: AsFd> Device<T> {
         offsets: [i32; 4],
         modifier: Modifier,
     ) -> IoResult<BufferObject<U>> {
+        let fds = buffers.map(|fd| fd.map_or(-1, |x| x.as_raw_fd()));
         let mut fd_data = ffi::gbm_import_fd_modifier_data {
-            fds: buffers,
+            fds,
             width,
             height,
             format: format as u32,

@@ -22,7 +22,7 @@
 //! use gbm::{BufferObjectFlags, Device, Format};
 //!
 //! # use std::fs::{File, OpenOptions};
-//! # use std::os::unix::io::{AsFd, BorrowedFd, RawFd};
+//! # use std::os::unix::io::{AsFd, BorrowedFd};
 //! #
 //! # use drm::control::Device as ControlDevice;
 //! # use drm::Device as BasicDevice;
