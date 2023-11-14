@@ -495,6 +495,30 @@ impl<T: 'static> BufferObject<T> {
             _userdata: PhantomData,
         }
     }
+
+    fn offsets(&self) -> [u32; 4] {
+        let num = self
+            .plane_count()
+            .expect("GbmDevice does not exist anymore");
+        [
+            BufferObject::<T>::offset(self, 0).unwrap(),
+            if num > 1 {
+                BufferObject::<T>::offset(self, 1).unwrap()
+            } else {
+                0
+            },
+            if num > 2 {
+                BufferObject::<T>::offset(self, 2).unwrap()
+            } else {
+                0
+            },
+            if num > 3 {
+                BufferObject::<T>::offset(self, 3).unwrap()
+            } else {
+                0
+            },
+        ]
+    }
 }
 
 impl<T: 'static> AsRaw<ffi::gbm_bo> for BufferObject<T> {
@@ -610,27 +634,7 @@ impl<T: 'static> DrmPlanarBuffer for BufferObject<T> {
         ]
     }
     fn offsets(&self) -> [u32; 4] {
-        let num = self
-            .plane_count()
-            .expect("GbmDevice does not exist anymore");
-        [
-            BufferObject::<T>::offset(self, 0).unwrap(),
-            if num > 1 {
-                BufferObject::<T>::offset(self, 1).unwrap()
-            } else {
-                0
-            },
-            if num > 2 {
-                BufferObject::<T>::offset(self, 2).unwrap()
-            } else {
-                0
-            },
-            if num > 3 {
-                BufferObject::<T>::offset(self, 3).unwrap()
-            } else {
-                0
-            },
-        ]
+        self.offsets()
     }
 }
 

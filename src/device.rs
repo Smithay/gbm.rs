@@ -1,6 +1,5 @@
 use crate::{AsRaw, BufferObject, BufferObjectFlags, Format, Modifier, Ptr, Surface};
 
-use libc::c_void;
 use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd};
 
 use std::error;
@@ -15,7 +14,7 @@ use wayland_server::protocol::wl_buffer::WlBuffer;
 
 #[cfg(feature = "import-egl")]
 /// An EGLImage handle
-pub type EGLImage = *mut c_void;
+pub type EGLImage = *mut libc::c_void;
 
 #[cfg(feature = "drm-support")]
 use drm::control::Device as DrmControlDevice;
