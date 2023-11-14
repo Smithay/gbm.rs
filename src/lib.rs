@@ -144,10 +144,6 @@ impl<T> Ptr<T> {
     fn new<F: FnOnce(*mut T) + Send + 'static>(ptr: *mut T, destructor: F) -> Ptr<T> {
         Ptr(Arc::new(PtrDrop(ptr, Some(Box::new(destructor)))))
     }
-
-    fn downgrade(&self) -> WeakPtr<T> {
-        WeakPtr(Arc::downgrade(&self.0))
-    }
 }
 
 impl<T> std::ops::Deref for Ptr<T> {
@@ -163,26 +159,6 @@ impl<T> fmt::Pointer for Ptr<T> {
         fmt::Pointer::fmt(&self.0 .0, f)
     }
 }
-
-#[derive(Clone)]
-pub(crate) struct WeakPtr<T>(Weak<PtrDrop<T>>);
-
-impl<T> WeakPtr<T> {
-    fn upgrade(&self) -> Option<Ptr<T>> {
-        self.0.upgrade().map(Ptr)
-    }
-}
-
-impl<T> fmt::Pointer for WeakPtr<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        match self.upgrade() {
-            Some(x) => fmt::Pointer::fmt(&x, f),
-            None => fmt::Pointer::fmt(&std::ptr::null::<T>(), f),
-        }
-    }
-}
-
-unsafe impl<T> Send for WeakPtr<T> where Ptr<T>: Send {}
 
 #[cfg(test)]
 mod test {

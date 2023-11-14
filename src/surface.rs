@@ -1,12 +1,13 @@
-use crate::{AsRaw, BufferObject, DeviceDestroyedError, Ptr, WeakPtr};
+use crate::{AsRaw, BufferObject, Ptr};
 use std::error;
 use std::fmt;
 use std::marker::PhantomData;
 
 /// A GBM rendering surface
 pub struct Surface<T: 'static> {
+    // Declare `ffi` first so it is dropped before `_device`
     ffi: Ptr<ffi::gbm_surface>,
-    _device: WeakPtr<ffi::gbm_device>,
+    _device: Ptr<ffi::gbm_device>,
     _bo_userdata: PhantomData<T>,
 }
 
@@ -26,8 +27,6 @@ pub enum FrontBufferError {
     NoFreeBuffers,
     /// An unknown error happened
     Unknown,
-    /// Device was already released
-    Destroyed(DeviceDestroyedError),
 }
 
 impl fmt::Display for FrontBufferError {
@@ -35,19 +34,11 @@ impl fmt::Display for FrontBufferError {
         match *self {
             FrontBufferError::NoFreeBuffers => write!(f, "No free buffers remaining"),
             FrontBufferError::Unknown => write!(f, "Unknown error"),
-            FrontBufferError::Destroyed(ref err) => write!(f, "Buffer was destroyed: {}", err),
         }
     }
 }
 
-impl error::Error for FrontBufferError {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            FrontBufferError::Destroyed(ref err) => Some(err),
-            _ => None,
-        }
-    }
-}
+impl error::Error for FrontBufferError {}
 
 impl<T: 'static> Surface<T> {
     ///  Return whether or not a surface has free (non-locked) buffers
@@ -58,12 +49,7 @@ impl<T: 'static> Surface<T> {
     /// [have been locked](Self::lock_front_buffer()),
     /// the application must check for a free buffer before rendering.
     pub fn has_free_buffers(&self) -> bool {
-        let device = self._device.upgrade();
-        if device.is_some() {
-            unsafe { ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 }
-        } else {
-            false
-        }
+        unsafe { ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 }
     }
 
     /// Lock the surface's current front buffer
@@ -79,36 +65,31 @@ impl<T: 'static> Surface<T> {
     /// on the surface or two or more times after `eglSwapBuffers` is an
     /// error and may cause undefined behavior.
     pub unsafe fn lock_front_buffer(&self) -> Result<BufferObject<T>, FrontBufferError> {
-        let device = self._device.upgrade();
-        if device.is_some() {
-            if ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 {
-                let buffer_ptr = ffi::gbm_surface_lock_front_buffer(*self.ffi);
-                if !buffer_ptr.is_null() {
-                    let surface_ptr = self.ffi.downgrade();
-                    let buffer = BufferObject {
-                        ffi: Ptr::new(buffer_ptr, move |ptr| {
-                            if let Some(surface) = surface_ptr.upgrade() {
-                                ffi::gbm_surface_release_buffer(*surface, ptr);
-                            }
-                        }),
-                        _device: self._device.clone(),
-                        _userdata: std::marker::PhantomData,
-                    };
-                    Ok(buffer)
-                } else {
-                    Err(FrontBufferError::Unknown)
-                }
+        if ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 {
+            let buffer_ptr = ffi::gbm_surface_lock_front_buffer(*self.ffi);
+            if !buffer_ptr.is_null() {
+                let surface_ptr = self.ffi.downgrade();
+                let buffer = BufferObject {
+                    ffi: Ptr::new(buffer_ptr, move |ptr| {
+                        if let Some(surface) = surface_ptr.upgrade() {
+                            ffi::gbm_surface_release_buffer(*surface, ptr);
+                        }
+                    }),
+                    _device: self._device.clone(),
+                    _userdata: std::marker::PhantomData,
+                };
+                Ok(buffer)
             } else {
-                Err(FrontBufferError::NoFreeBuffers)
+                Err(FrontBufferError::Unknown)
             }
         } else {
-            Err(FrontBufferError::Destroyed(DeviceDestroyedError))
+            Err(FrontBufferError::NoFreeBuffers)
         }
     }
 
     pub(crate) unsafe fn new(
         ffi: *mut ffi::gbm_surface,
-        device: WeakPtr<ffi::gbm_device>,
+        device: Ptr<ffi::gbm_device>,
     ) -> Surface<T> {
         Surface {
             ffi: Ptr::new(ffi, |ptr| ffi::gbm_surface_destroy(ptr)),
