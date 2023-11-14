@@ -41,7 +41,7 @@ default = ["import-wayland", "import-egl", "drm-support"]
 import-wayland = ["wayland-server", "wayland-backend"]
 import-egl = []
 drm-support = ["drm"]
-gen = ["gbm-sys/gen"]
+use_bindgen = ["gbm-sys/use_bindgen"]
 
 [workspace]
 members = [
