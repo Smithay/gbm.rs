@@ -4,7 +4,7 @@ description = "libgbm bindings for rust"
 license = "MIT"
 documentation = "https://docs.rs/gbm"
 repository = "https://github.com/Smithay/gbm.rs"
-version = "0.13.0"
+version = "0.14.0"
 keywords = ["wayland", "gbm", "drm", "bindings"]
 categories = ["external-ffi-bindings"]
 authors = ["Victoria Brekenfeld <github@drakulix.de>"]
@@ -17,7 +17,7 @@ bitflags = "1.2"
 drm-fourcc = "2.2"
 
 [dependencies.gbm-sys]
-version = "0.2.2"
+version = "0.3.0"
 path = "./gbm-sys"
 
 [dependencies.drm]

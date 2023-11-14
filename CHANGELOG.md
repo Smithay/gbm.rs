@@ -1,3 +1,9 @@
+## 0.14.0
+- Update to drm-rs 0.11
+- Use `BorrowedFd` instead of `RawFd` in API
+- Don't require generated bindings for specific OS/architecture to build
+- Fix build without default features
+
 ## 0.13.0
 
 - Update to drm-rs 0.10
