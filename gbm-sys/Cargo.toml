@@ -27,5 +27,5 @@ regex = { version = "1.10", optional = true }
 libc = "0.2"
 
 [features]
-gen = ["bindgen", "dep:proc-macro2", "dep:regex"]
-update_bindings = ["gen"]
+use_bindgen = ["bindgen", "dep:proc-macro2", "dep:regex"]
+update_bindings = ["use_bindgen"]
