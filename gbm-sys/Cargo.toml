@@ -14,12 +14,17 @@ license = "MIT"
 path = "src/lib.rs"
 
 [build-dependencies.bindgen]
-version = "0.58"
+version = "0.69"
 optional = true
+
+# Specify version of bindgen deps to fix `check-minimal` test
+[build-dependencies]
+proc-macro2 = { version = "1.0.69", optional = true }
+regex = { version = "1.10", optional = true }
 
 [dependencies]
 libc = "0.2"
 
 [features]
-gen = ["bindgen"]
+gen = ["bindgen", "dep:proc-macro2", "dep:regex"]
 update_bindings = ["gen"]

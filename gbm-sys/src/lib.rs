@@ -7,14 +7,10 @@
 extern crate libc;
 
 #[cfg(feature = "gen")]
-include!(concat!(env!("OUT_DIR"), "/gen.rs"));
+include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[cfg(not(feature = "gen"))]
-include!(concat!(
-    "platforms/",
-    env!("GBM_SYS_BINDINGS_PATH"),
-    "/gen.rs"
-));
+include!("bindings.rs");
 
 #[link(name = "gbm")]
 extern "C" {}
