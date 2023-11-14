@@ -4,8 +4,6 @@
 // it is not so.
 #![cfg_attr(test, allow(deref_nullptr))]
 
-extern crate libc;
-
 #[cfg(feature = "gen")]
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
