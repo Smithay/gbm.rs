@@ -129,10 +129,7 @@ impl<T: AsFd> Device<T> {
         format: Format,
         modifiers: impl Iterator<Item = Modifier>,
     ) -> IoResult<Surface<U>> {
-        let mods = modifiers
-            .take(ffi::GBM_MAX_PLANES as usize)
-            .map(|m| m.into())
-            .collect::<Vec<u64>>();
+        let mods = modifiers.map(|m| m.into()).collect::<Vec<u64>>();
         let ptr = unsafe {
             ffi::gbm_surface_create_with_modifiers(
                 *self.ffi,
@@ -159,10 +156,7 @@ impl<T: AsFd> Device<T> {
         modifiers: impl Iterator<Item = Modifier>,
         usage: BufferObjectFlags,
     ) -> IoResult<Surface<U>> {
-        let mods = modifiers
-            .take(ffi::GBM_MAX_PLANES as usize)
-            .map(|m| m.into())
-            .collect::<Vec<u64>>();
+        let mods = modifiers.map(|m| m.into()).collect::<Vec<u64>>();
         let ptr = unsafe {
             ffi::gbm_surface_create_with_modifiers2(
                 *self.ffi,
@@ -206,10 +200,7 @@ impl<T: AsFd> Device<T> {
         format: Format,
         modifiers: impl Iterator<Item = Modifier>,
     ) -> IoResult<BufferObject<U>> {
-        let mods = modifiers
-            .take(ffi::GBM_MAX_PLANES as usize)
-            .map(|m| m.into())
-            .collect::<Vec<u64>>();
+        let mods = modifiers.map(|m| m.into()).collect::<Vec<u64>>();
         let ptr = unsafe {
             ffi::gbm_bo_create_with_modifiers(
                 *self.ffi,
@@ -236,10 +227,7 @@ impl<T: AsFd> Device<T> {
         modifiers: impl Iterator<Item = Modifier>,
         usage: BufferObjectFlags,
     ) -> IoResult<BufferObject<U>> {
-        let mods = modifiers
-            .take(ffi::GBM_MAX_PLANES as usize)
-            .map(|m| m.into())
-            .collect::<Vec<u64>>();
+        let mods = modifiers.map(|m| m.into()).collect::<Vec<u64>>();
         let ptr = unsafe {
             ffi::gbm_bo_create_with_modifiers2(
                 *self.ffi,
