@@ -84,6 +84,8 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-build-rust_1_65-check-${{ hashFiles('**/Cargo.toml') }}
+      - name: Downgrade to MSRV package versions
+        run: cargo update -p home --precise 0.5.5
       - name: Clippy check
         uses: actions-rs/clippy-check@v1
         with:
