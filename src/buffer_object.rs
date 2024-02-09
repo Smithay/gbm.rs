@@ -2,7 +2,7 @@ use crate::{AsRaw, Device, DeviceDestroyedError, Format, Modifier, Ptr, WeakPtr}
 
 #[cfg(feature = "drm-support")]
 use drm::buffer::{Buffer as DrmBuffer, Handle, PlanarBuffer as DrmPlanarBuffer};
-use std::os::unix::io::{AsFd, FromRawFd, OwnedFd};
+use std::os::unix::io::{AsFd, BorrowedFd, FromRawFd, OwnedFd};
 
 use std::error;
 use std::fmt;
@@ -254,6 +254,12 @@ impl<T: 'static> BufferObject<T> {
 
             Ok(OwnedFd::from_raw_fd(fd))
         }
+    }
+
+    /// Get the file descriptor of the gbm device of this buffer object
+    pub fn device_fd(&self) -> Result<BorrowedFd, DeviceDestroyedError> {
+        let device_ptr = self._device.upgrade().ok_or(DeviceDestroyedError)?;
+        Ok(unsafe { BorrowedFd::borrow_raw(ffi::gbm_device_get_fd(*device_ptr)) })
     }
 
     /// Get the handle of the buffer object
