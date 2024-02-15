@@ -1,3 +1,7 @@
+## 0.14.2
+
+- buffer objects: Add a method to receive the corresponding devices file descriptor
+
 ## 0.14.1
 
 - Bugfix: Don't limit modifier lists to `GBM_MAX_PLANES`
