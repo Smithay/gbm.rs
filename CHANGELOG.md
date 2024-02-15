@@ -1,4 +1,9 @@
+## 0.14.1
+
+- Bugfix: Don't limit modifier lists to `GBM_MAX_PLANES`
+
 ## 0.14.0
+
 - Update to drm-rs 0.11
 - Use `BorrowedFd` instead of `RawFd` in API
 - Don't require generated bindings for specific OS/architecture to build
