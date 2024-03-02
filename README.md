@@ -40,7 +40,7 @@ let mut bo = gbm
         1280,
         720,
         Format::Argb8888,
-        BufferObjectFlags::SCANOUT | BufferObjectFlags::WRITE,
+        BufferObjectFlags::SCANOUT | BufferObjectFlags::CURSOR | BufferObjectFlags::WRITE,
     )
     .unwrap();
 
