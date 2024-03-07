@@ -40,6 +40,7 @@ bitflags! {
     ///
     /// Use [`Device::is_format_supported()`] to check if the combination of format
     /// and use flags are supported
+    #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
     pub struct BufferObjectFlags: u32 {
         /// Buffer is going to be presented to the screen using an API such as KMS
         const SCANOUT      = ffi::gbm_bo_flags::GBM_BO_USE_SCANOUT as u32;
@@ -58,6 +59,19 @@ bitflags! {
         const LINEAR       = ffi::gbm_bo_flags::GBM_BO_USE_LINEAR as u32;
         /// Buffer is protected
         const PROTECTED    = ffi::gbm_bo_flags::GBM_BO_USE_PROTECTED as u32;
+    }
+}
+
+impl BufferObjectFlags {
+    /// Create BufferObjectFlags from u32, preserving all bits (even undefined ones).
+    ///
+    /// This was provided by bitflags! macro in v1 and was replaced in v2 by safe from_bits_retain.
+    ///
+    /// # Safety
+    /// This function is safe. The unsafe marker was left for exact source compatibility.
+    #[deprecated = "Use from_bits_retain instead"]
+    pub const unsafe fn from_bits_unchecked(bits: u32) -> Self {
+        Self::from_bits_retain(bits)
     }
 }
 
