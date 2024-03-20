@@ -22,8 +22,6 @@ impl<T: 'static> fmt::Debug for Surface<T> {
 /// Errors that may happen when locking the front buffer
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrontBufferError {
-    /// No free buffers are currently available
-    NoFreeBuffers,
     /// An unknown error happened
     Unknown,
     /// Device was already released
@@ -33,7 +31,6 @@ pub enum FrontBufferError {
 impl fmt::Display for FrontBufferError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            FrontBufferError::NoFreeBuffers => write!(f, "No free buffers remaining"),
             FrontBufferError::Unknown => write!(f, "Unknown error"),
             FrontBufferError::Destroyed(ref err) => write!(f, "Buffer was destroyed: {}", err),
         }
@@ -81,25 +78,21 @@ impl<T: 'static> Surface<T> {
     pub unsafe fn lock_front_buffer(&self) -> Result<BufferObject<T>, FrontBufferError> {
         let device = self._device.upgrade();
         if device.is_some() {
-            if ffi::gbm_surface_has_free_buffers(*self.ffi) != 0 {
-                let buffer_ptr = ffi::gbm_surface_lock_front_buffer(*self.ffi);
-                if !buffer_ptr.is_null() {
-                    let surface_ptr = self.ffi.downgrade();
-                    let buffer = BufferObject {
-                        ffi: Ptr::new(buffer_ptr, move |ptr| {
-                            if let Some(surface) = surface_ptr.upgrade() {
-                                ffi::gbm_surface_release_buffer(*surface, ptr);
-                            }
-                        }),
-                        _device: self._device.clone(),
-                        _userdata: std::marker::PhantomData,
-                    };
-                    Ok(buffer)
-                } else {
-                    Err(FrontBufferError::Unknown)
-                }
+            let buffer_ptr = ffi::gbm_surface_lock_front_buffer(*self.ffi);
+            if !buffer_ptr.is_null() {
+                let surface_ptr = self.ffi.downgrade();
+                let buffer = BufferObject {
+                    ffi: Ptr::new(buffer_ptr, move |ptr| {
+                        if let Some(surface) = surface_ptr.upgrade() {
+                            ffi::gbm_surface_release_buffer(*surface, ptr);
+                        }
+                    }),
+                    _device: self._device.clone(),
+                    _userdata: std::marker::PhantomData,
+                };
+                Ok(buffer)
             } else {
-                Err(FrontBufferError::NoFreeBuffers)
+                Err(FrontBufferError::Unknown)
             }
         } else {
             Err(FrontBufferError::Destroyed(DeviceDestroyedError))
