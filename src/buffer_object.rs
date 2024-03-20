@@ -62,19 +62,6 @@ bitflags! {
     }
 }
 
-impl BufferObjectFlags {
-    /// Create BufferObjectFlags from u32, preserving all bits (even undefined ones).
-    ///
-    /// This was provided by bitflags! macro in v1 and was replaced in v2 by safe from_bits_retain.
-    ///
-    /// # Safety
-    /// This function is safe. The unsafe marker was left for exact source compatibility.
-    #[deprecated = "Use from_bits_retain instead"]
-    pub const unsafe fn from_bits_unchecked(bits: u32) -> Self {
-        Self::from_bits_retain(bits)
-    }
-}
-
 /// Abstraction representing the handle to a buffer allocated by the manager
 pub type BufferObjectHandle = ffi::gbm_bo_handle;
 
