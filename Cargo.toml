@@ -34,7 +34,10 @@ features = ["server_system"]
 optional = true
 
 [dependencies.serde]
-version = "1"
+# Minimal serde version that can compile serde-annotated bitflags v2.
+# Workaround that allows -Z minimal-versions build to succeed despite bitflags
+# crate not declaring minimum versions of its dependencies precisely enough.
+version = "1.0.103"
 features = ["derive"]
 optional = true
 
