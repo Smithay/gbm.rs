@@ -40,6 +40,8 @@ bitflags! {
     ///
     /// Use [`Device::is_format_supported()`] to check if the combination of format
     /// and use flags are supported
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
+    #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
     pub struct BufferObjectFlags: u32 {
         /// Buffer is going to be presented to the screen using an API such as KMS
         const SCANOUT      = ffi::gbm_bo_flags::GBM_BO_USE_SCANOUT as u32;
