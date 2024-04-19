@@ -1,3 +1,9 @@
+## 0.15.0
+
+- Update drm-rs to 0.12
+- Update bitflags to v2
+- Fix for `Surface::lock_front_buffer` failing on some drivers
+
 ## 0.14.2
 
 - buffer objects: Add a method to receive the corresponding devices file descriptor
