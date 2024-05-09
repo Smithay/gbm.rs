@@ -103,6 +103,23 @@ impl<T: AsFd> Device<T> {
         unsafe { ffi::gbm_device_is_format_supported(*self.ffi, format as u32, usage.bits()) != 0 }
     }
 
+    /// Get the required number of planes for a given format and modifier
+    pub fn format_modifier_plane_count(
+        &self,
+        format: Format,
+        modifier: Modifier,
+    ) -> Result<u32, ()> {
+        unsafe {
+            ffi::gbm_device_get_format_modifier_plane_count(
+                *self.ffi,
+                format as u32,
+                modifier.into(),
+            )
+            .try_into()
+            .map_err(|_| ())
+        }
+    }
+
     /// Allocate a new surface object
     pub fn create_surface<U: 'static>(
         &self,
