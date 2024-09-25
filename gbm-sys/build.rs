@@ -1,10 +1,10 @@
-#[cfg(feature = "gen")]
+#[cfg(feature = "use_bindgen")]
 extern crate bindgen;
 
-#[cfg(not(feature = "gen"))]
+#[cfg(not(feature = "use_bindgen"))]
 fn main() {}
 
-#[cfg(feature = "gen")]
+#[cfg(feature = "use_bindgen")]
 fn main() {
     use std::{env, path::Path};
 
