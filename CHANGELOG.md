@@ -1,3 +1,8 @@
+## 0.16.0
+
+- Update drm-rs to 0.14
+- Fix `use_bindgen` feature
+
 ## 0.15.0
 
 - Update drm-rs to 0.12
