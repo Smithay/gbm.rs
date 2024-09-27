@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_cast)]
+
 use crate::{AsRaw, Device, DeviceDestroyedError, Format, Modifier, Ptr, WeakPtr};
 
 #[cfg(feature = "drm-support")]
