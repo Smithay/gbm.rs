@@ -265,7 +265,7 @@ impl<T: AsFd> Device<T> {
         let ptr = unsafe {
             ffi::gbm_bo_import(
                 *self.ffi,
-                ffi::GBM_BO_IMPORT_WL_BUFFER as u32,
+                ffi::GBM_BO_IMPORT_WL_BUFFER,
                 buffer.id().as_ptr() as *mut _,
                 usage.bits(),
             )
@@ -298,7 +298,7 @@ impl<T: AsFd> Device<T> {
     ) -> IoResult<BufferObject<U>> {
         let ptr = ffi::gbm_bo_import(
             *self.ffi,
-            ffi::GBM_BO_IMPORT_EGL_IMAGE as u32,
+            ffi::GBM_BO_IMPORT_EGL_IMAGE,
             buffer,
             usage.bits(),
         );
@@ -337,7 +337,7 @@ impl<T: AsFd> Device<T> {
         let ptr = unsafe {
             ffi::gbm_bo_import(
                 *self.ffi,
-                ffi::GBM_BO_IMPORT_FD as u32,
+                ffi::GBM_BO_IMPORT_FD,
                 &mut fd_data as *mut ffi::gbm_import_fd_data as *mut _,
                 usage.bits(),
             )
@@ -385,7 +385,7 @@ impl<T: AsFd> Device<T> {
         let ptr = unsafe {
             ffi::gbm_bo_import(
                 *self.ffi,
-                ffi::GBM_BO_IMPORT_FD_MODIFIER as u32,
+                ffi::GBM_BO_IMPORT_FD_MODIFIER,
                 &mut fd_data as *mut ffi::gbm_import_fd_modifier_data as *mut _,
                 usage.bits(),
             )
