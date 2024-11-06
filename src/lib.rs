@@ -136,9 +136,11 @@ impl<T> Drop for PtrDrop<T> {
 
 #[derive(Clone)]
 pub(crate) struct Ptr<T>(Arc<PtrDrop<T>>);
-// SAFETY: The types used with Ptr in this crate are all Send (namely gbm_device, gbm_surface and gbm_bo).
+// SAFETY: The types used with Ptr in this crate are all Send and Sync (namely gbm_device, gbm_surface and gbm_bo).
+// Reference counting is implemented with the thread-safe atomic `Arc`-wrapper.
 // The type is private and can thus not be used unsoundly by other crates.
 unsafe impl<T> Send for Ptr<T> {}
+unsafe impl<T> Sync for Ptr<T> {}
 
 impl<T> Ptr<T> {
     fn new<F: FnOnce(*mut T) + Send + 'static>(ptr: *mut T, destructor: F) -> Ptr<T> {
@@ -183,17 +185,25 @@ impl<T> fmt::Pointer for WeakPtr<T> {
 }
 
 unsafe impl<T> Send for WeakPtr<T> where Ptr<T>: Send {}
+unsafe impl<T> Sync for WeakPtr<T> where Ptr<T>: Sync {}
 
 #[cfg(test)]
 mod test {
     use std::os::unix::io::OwnedFd;
 
     fn is_send<T: Send>() {}
+    fn is_sync<T: Sync>() {}
 
     #[test]
     fn device_is_send() {
         is_send::<super::Device<std::fs::File>>();
         is_send::<super::Device<OwnedFd>>();
+    }
+
+    #[test]
+    fn device_is_sync() {
+        is_sync::<super::Device<std::fs::File>>();
+        is_sync::<super::Device<OwnedFd>>();
     }
 
     #[test]
@@ -203,7 +213,18 @@ mod test {
     }
 
     #[test]
+    fn surface_is_sync() {
+        is_sync::<super::Surface<std::fs::File>>();
+        is_sync::<super::Surface<OwnedFd>>();
+    }
+
+    #[test]
     fn unmapped_bo_is_send() {
         is_send::<super::BufferObject<()>>();
+    }
+
+    #[test]
+    fn unmapped_bo_is_sync() {
+        is_sync::<super::BufferObject<()>>();
     }
 }
