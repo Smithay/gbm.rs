@@ -1,3 +1,8 @@
+## 0.16.1
+
+- `Device`/`Surface`/`BufferObject` are now `Sync`
+- `Device::format_modifier_plane_count` was added as a wrapper for `gbm_device_get_format_modifier_plane_count`
+
 ## 0.16.0
 
 - Update drm-rs to 0.14
