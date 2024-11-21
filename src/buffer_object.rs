@@ -1,6 +1,6 @@
 #![allow(clippy::unnecessary_cast)]
 
-use crate::{AsRaw, Device, DeviceDestroyedError, Format, Modifier, Ptr, WeakPtr};
+use crate::{AsRaw, Device, Format, Modifier, Ptr};
 
 #[cfg(feature = "drm-support")]
 use drm::buffer::{Buffer as DrmBuffer, Handle, PlanarBuffer as DrmPlanarBuffer};
@@ -16,8 +16,9 @@ use std::slice;
 
 /// A GBM buffer object
 pub struct BufferObject<T: 'static> {
+    // Declare `ffi` first so it is dropped before `_device`
     pub(crate) ffi: Ptr<ffi::gbm_bo>,
-    pub(crate) _device: WeakPtr<ffi::gbm_device>,
+    pub(crate) _device: Ptr<ffi::gbm_device>,
     pub(crate) _userdata: PhantomData<T>,
 }
 
@@ -26,12 +27,12 @@ impl<T> fmt::Debug for BufferObject<T> {
         f.debug_struct("BufferObject")
             .field("ptr", &format_args!("{:p}", self.ffi))
             .field("device", &format_args!("{:p}", &self._device))
-            .field("width", &self.width().unwrap_or(0))
-            .field("height", &self.height().unwrap_or(0))
+            .field("width", &self.width())
+            .field("height", &self.height())
             .field("offsets", &self.offsets())
-            .field("stride", &self.stride().unwrap_or(0))
-            .field("format", &self.format().ok())
-            .field("modifier", &self.modifier().ok())
+            .field("stride", &self.stride())
+            .field("format", &self.format())
+            .field("modifier", &self.modifier())
             .finish()
     }
 }
@@ -183,62 +184,49 @@ unsafe extern "C" fn destroy<T: 'static>(_: *mut ffi::gbm_bo, ptr: *mut ::libc::
 
 impl<T: 'static> BufferObject<T> {
     /// Get the width of the buffer object
-    pub fn width(&self) -> Result<u32, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(unsafe { ffi::gbm_bo_get_width(*self.ffi) })
+    pub fn width(&self) -> u32 {
+        unsafe { ffi::gbm_bo_get_width(*self.ffi) }
     }
 
     /// Get the height of the buffer object
-    pub fn height(&self) -> Result<u32, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(unsafe { ffi::gbm_bo_get_height(*self.ffi) })
+    pub fn height(&self) -> u32 {
+        unsafe { ffi::gbm_bo_get_height(*self.ffi) }
     }
 
     /// Get the stride of the buffer object
-    pub fn stride(&self) -> Result<u32, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(unsafe { ffi::gbm_bo_get_stride(*self.ffi) })
+    pub fn stride(&self) -> u32 {
+        unsafe { ffi::gbm_bo_get_stride(*self.ffi) }
     }
 
     /// Get the stride of the buffer object
-    pub fn stride_for_plane(&self, plane: i32) -> Result<u32, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(unsafe { ffi::gbm_bo_get_stride_for_plane(*self.ffi, plane) })
+    pub fn stride_for_plane(&self, plane: i32) -> u32 {
+        unsafe { ffi::gbm_bo_get_stride_for_plane(*self.ffi, plane) }
     }
 
     /// Get the format of the buffer object
-    pub fn format(&self) -> Result<Format, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(
-            Format::try_from(unsafe { ffi::gbm_bo_get_format(*self.ffi) })
-                .expect("libgbm returned invalid buffer format"),
-        )
+    pub fn format(&self) -> Format {
+        Format::try_from(unsafe { ffi::gbm_bo_get_format(*self.ffi) })
+            .expect("libgbm returned invalid buffer format")
     }
 
     /// Get the bits per pixel of the buffer object
-    pub fn bpp(&self) -> Result<u32, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(unsafe { ffi::gbm_bo_get_bpp(*self.ffi) })
+    pub fn bpp(&self) -> u32 {
+        unsafe { ffi::gbm_bo_get_bpp(*self.ffi) }
     }
 
     /// Get the offset for a plane of the buffer object
-    pub fn offset(&self, plane: i32) -> Result<u32, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(unsafe { ffi::gbm_bo_get_offset(*self.ffi, plane) })
+    pub fn offset(&self, plane: i32) -> u32 {
+        unsafe { ffi::gbm_bo_get_offset(*self.ffi, plane) }
     }
 
     /// Get the plane count of the buffer object
-    pub fn plane_count(&self) -> Result<u32, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(unsafe { ffi::gbm_bo_get_plane_count(*self.ffi) as u32 })
+    pub fn plane_count(&self) -> u32 {
+        unsafe { ffi::gbm_bo_get_plane_count(*self.ffi) as u32 }
     }
 
     /// Get the modifier of the buffer object
-    pub fn modifier(&self) -> Result<Modifier, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(Modifier::from(unsafe {
-            ffi::gbm_bo_get_modifier(*self.ffi)
-        }))
+    pub fn modifier(&self) -> Modifier {
+        Modifier::from(unsafe { ffi::gbm_bo_get_modifier(*self.ffi) })
     }
 
     /// Get a DMA-BUF file descriptor for the buffer object
@@ -248,7 +236,6 @@ impl<T: 'static> BufferObject<T> {
     /// file descriptor and the caller is responsible for closing the file
     /// descriptor.
     pub fn fd(&self) -> Result<OwnedFd, FdError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
         unsafe {
             let fd = ffi::gbm_bo_get_fd(*self.ffi);
 
@@ -261,18 +248,16 @@ impl<T: 'static> BufferObject<T> {
     }
 
     /// Get the file descriptor of the gbm device of this buffer object
-    pub fn device_fd(&self) -> Result<BorrowedFd, DeviceDestroyedError> {
-        let device_ptr = self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(unsafe { BorrowedFd::borrow_raw(ffi::gbm_device_get_fd(*device_ptr)) })
+    pub fn device_fd(&self) -> BorrowedFd {
+        unsafe { BorrowedFd::borrow_raw(ffi::gbm_device_get_fd(*self._device)) }
     }
 
     /// Get the handle of the buffer object
     ///
     /// This is stored in the platform generic union [`BufferObjectHandle`] type.  However
     /// the format of this handle is platform specific.
-    pub fn handle(&self) -> Result<BufferObjectHandle, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(unsafe { ffi::gbm_bo_get_handle(*self.ffi) })
+    pub fn handle(&self) -> BufferObjectHandle {
+        unsafe { ffi::gbm_bo_get_handle(*self.ffi) }
     }
 
     /// Get a DMA-BUF file descriptor for a plane of the buffer object
@@ -282,7 +267,6 @@ impl<T: 'static> BufferObject<T> {
     /// returns a new file descriptor and the caller is responsible for closing
     /// the file descriptor.
     pub fn fd_for_plane(&self, plane: i32) -> Result<OwnedFd, FdError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
         unsafe {
             let fd = ffi::gbm_bo_get_fd_for_plane(*self.ffi, plane);
 
@@ -298,9 +282,8 @@ impl<T: 'static> BufferObject<T> {
     ///
     /// This is stored in the platform generic union [`BufferObjectHandle`] type.  However
     /// the format of this handle is platform specific.
-    pub fn handle_for_plane(&self, plane: i32) -> Result<BufferObjectHandle, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
-        Ok(unsafe { ffi::gbm_bo_get_handle_for_plane(*self.ffi, plane) })
+    pub fn handle_for_plane(&self, plane: i32) -> BufferObjectHandle {
+        unsafe { ffi::gbm_bo_get_handle_for_plane(*self.ffi, plane) }
     }
 
     /// Map a region of a GBM buffer object for cpu access
@@ -319,8 +302,7 @@ impl<T: 'static> BufferObject<T> {
         D: AsFd + 'static,
         F: FnOnce(&MappedBufferObject<'a, T>) -> S,
     {
-        let device_ref = self._device.upgrade().ok_or(WrongDeviceError)?;
-        if *device_ref != device.as_raw_mut() {
+        if *self._device != device.as_raw_mut() {
             // not matching
             return Err(WrongDeviceError);
         }
@@ -372,8 +354,7 @@ impl<T: 'static> BufferObject<T> {
         D: AsFd + 'static,
         F: FnOnce(&mut MappedBufferObject<'a, T>) -> S,
     {
-        let device_ref = self._device.upgrade().ok_or(WrongDeviceError)?;
-        if *device_ref != device.as_raw_mut() {
+        if *self._device != device.as_raw_mut() {
             // not matching
             return Err(WrongDeviceError);
         }
@@ -416,22 +397,20 @@ impl<T: 'static> BufferObject<T> {
     /// data is copied directly into the object and it's the responsibility
     /// of the caller to make sure the data represents valid pixel data,
     /// according to the width, height, stride and format of the buffer object.
-    pub fn write(&mut self, buffer: &[u8]) -> Result<IoResult<()>, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
+    pub fn write(&mut self, buffer: &[u8]) -> IoResult<()> {
         let result =
             unsafe { ffi::gbm_bo_write(*self.ffi, buffer.as_ptr() as *const _, buffer.len() as _) };
         if result != 0 {
-            Ok(Err(IoError::last_os_error()))
+            Err(IoError::last_os_error())
         } else {
-            Ok(Ok(()))
+            Ok(())
         }
     }
 
     /// Sets the userdata of the buffer object.
     ///
     /// If previously userdata was set, it is returned.
-    pub fn set_userdata(&mut self, userdata: T) -> Result<Option<T>, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
+    pub fn set_userdata(&mut self, userdata: T) -> Option<T> {
         let old = self.take_userdata();
 
         let boxed = Box::new(userdata);
@@ -447,57 +426,52 @@ impl<T: 'static> BufferObject<T> {
     }
 
     /// Clears the set userdata of the buffer object.
-    pub fn clear_userdata(&mut self) -> Result<(), DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
+    pub fn clear_userdata(&mut self) {
         let _ = self.take_userdata();
-        Ok(())
     }
 
     /// Returns a reference to set userdata, if any.
-    pub fn userdata(&self) -> Result<Option<&T>, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
+    pub fn userdata(&self) -> Option<&T> {
         let raw = unsafe { ffi::gbm_bo_get_user_data(*self.ffi) };
 
         if raw.is_null() {
-            Ok(None)
+            None
         } else {
-            unsafe { Ok(Some(&*(raw as *mut T))) }
+            unsafe { Some(&*(raw as *mut T)) }
         }
     }
 
     /// Returns a mutable reference to set userdata, if any.
-    pub fn userdata_mut(&mut self) -> Result<Option<&mut T>, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
+    pub fn userdata_mut(&mut self) -> Option<&mut T> {
         let raw = unsafe { ffi::gbm_bo_get_user_data(*self.ffi) };
 
         if raw.is_null() {
-            Ok(None)
+            None
         } else {
-            unsafe { Ok(Some(&mut *(raw as *mut T))) }
+            unsafe { Some(&mut *(raw as *mut T)) }
         }
     }
 
     /// Takes ownership of previously set userdata, if any.
     ///
     /// This removes the userdata from the buffer object.
-    pub fn take_userdata(&mut self) -> Result<Option<T>, DeviceDestroyedError> {
-        self._device.upgrade().ok_or(DeviceDestroyedError)?;
+    pub fn take_userdata(&mut self) -> Option<T> {
         let raw = unsafe { ffi::gbm_bo_get_user_data(*self.ffi) };
 
         if raw.is_null() {
-            Ok(None)
+            None
         } else {
             unsafe {
                 let boxed = Box::from_raw(raw as *mut T);
                 ffi::gbm_bo_set_user_data(*self.ffi, ptr::null_mut(), None);
-                Ok(Some(*boxed))
+                Some(*boxed)
             }
         }
     }
 
     pub(crate) unsafe fn new(
         ffi: *mut ffi::gbm_bo,
-        device: WeakPtr<ffi::gbm_device>,
+        device: Ptr<ffi::gbm_device>,
     ) -> BufferObject<T> {
         BufferObject {
             ffi: Ptr::<ffi::gbm_bo>::new(ffi, |ptr| ffi::gbm_bo_destroy(ptr)),
@@ -507,23 +481,21 @@ impl<T: 'static> BufferObject<T> {
     }
 
     fn offsets(&self) -> [u32; 4] {
-        let num = self
-            .plane_count()
-            .expect("GbmDevice does not exist anymore");
+        let num = self.plane_count();
         [
-            BufferObject::<T>::offset(self, 0).unwrap(),
+            BufferObject::<T>::offset(self, 0),
             if num > 1 {
-                BufferObject::<T>::offset(self, 1).unwrap()
+                BufferObject::<T>::offset(self, 1)
             } else {
                 0
             },
             if num > 2 {
-                BufferObject::<T>::offset(self, 2).unwrap()
+                BufferObject::<T>::offset(self, 2)
             } else {
                 0
             },
             if num > 3 {
-                BufferObject::<T>::offset(self, 3).unwrap()
+                BufferObject::<T>::offset(self, 3)
             } else {
                 0
             },
@@ -540,64 +512,50 @@ impl<T: 'static> AsRaw<ffi::gbm_bo> for BufferObject<T> {
 #[cfg(feature = "drm-support")]
 impl<T: 'static> DrmBuffer for BufferObject<T> {
     fn size(&self) -> (u32, u32) {
-        (
-            self.width().expect("GbmDevice does not exist anymore"),
-            self.height().expect("GbmDevice does not exist anymore"),
-        )
+        (self.width(), self.height())
     }
 
     fn format(&self) -> Format {
-        BufferObject::<T>::format(self).expect("GbmDevice does not exist anymore")
+        BufferObject::<T>::format(self)
     }
 
     fn pitch(&self) -> u32 {
-        self.stride().expect("GbmDevice does not exist anymore")
+        self.stride()
     }
 
     fn handle(&self) -> Handle {
         use std::num::NonZeroU32;
-        unsafe {
-            Handle::from(NonZeroU32::new_unchecked(
-                self.handle()
-                    .expect("GbmDevice does not exist anymore")
-                    .u32_,
-            ))
-        }
+        unsafe { Handle::from(NonZeroU32::new_unchecked(self.handle().u32_)) }
     }
 }
 
 #[cfg(feature = "drm-support")]
 impl<T: 'static> DrmPlanarBuffer for BufferObject<T> {
     fn size(&self) -> (u32, u32) {
-        (
-            self.width().expect("GbmDevice does not exist anymore"),
-            self.height().expect("GbmDevice does not exist anymore"),
-        )
+        (self.width(), self.height())
     }
     fn format(&self) -> Format {
-        BufferObject::<T>::format(self).expect("GbmDevice does not exist anymore")
+        BufferObject::<T>::format(self)
     }
     fn modifier(&self) -> Option<Modifier> {
-        Some(BufferObject::<T>::modifier(self).expect("GbmDevice does not exist anymore"))
+        Some(BufferObject::<T>::modifier(self))
     }
     fn pitches(&self) -> [u32; 4] {
-        let num = self
-            .plane_count()
-            .expect("GbmDevice does not exist anymore");
+        let num = self.plane_count();
         [
-            BufferObject::<T>::stride_for_plane(self, 0).unwrap(),
+            BufferObject::<T>::stride_for_plane(self, 0),
             if num > 1 {
-                BufferObject::<T>::stride_for_plane(self, 1).unwrap()
+                BufferObject::<T>::stride_for_plane(self, 1)
             } else {
                 0
             },
             if num > 2 {
-                BufferObject::<T>::stride_for_plane(self, 2).unwrap()
+                BufferObject::<T>::stride_for_plane(self, 2)
             } else {
                 0
             },
             if num > 3 {
-                BufferObject::<T>::stride_for_plane(self, 3).unwrap()
+                BufferObject::<T>::stride_for_plane(self, 3)
             } else {
                 0
             },
@@ -605,19 +563,17 @@ impl<T: 'static> DrmPlanarBuffer for BufferObject<T> {
     }
     fn handles(&self) -> [Option<Handle>; 4] {
         use std::num::NonZeroU32;
-        let num = self
-            .plane_count()
-            .expect("GbmDevice does not exist anymore");
+        let num = self.plane_count();
         [
             Some(unsafe {
                 Handle::from(NonZeroU32::new_unchecked(
-                    BufferObject::<T>::handle_for_plane(self, 0).unwrap().u32_,
+                    BufferObject::<T>::handle_for_plane(self, 0).u32_,
                 ))
             }),
             if num > 1 {
                 Some(unsafe {
                     Handle::from(NonZeroU32::new_unchecked(
-                        BufferObject::<T>::handle_for_plane(self, 1).unwrap().u32_,
+                        BufferObject::<T>::handle_for_plane(self, 1).u32_,
                     ))
                 })
             } else {
@@ -626,7 +582,7 @@ impl<T: 'static> DrmPlanarBuffer for BufferObject<T> {
             if num > 2 {
                 Some(unsafe {
                     Handle::from(NonZeroU32::new_unchecked(
-                        BufferObject::<T>::handle_for_plane(self, 2).unwrap().u32_,
+                        BufferObject::<T>::handle_for_plane(self, 2).u32_,
                     ))
                 })
             } else {
@@ -635,7 +591,7 @@ impl<T: 'static> DrmPlanarBuffer for BufferObject<T> {
             if num > 3 {
                 Some(unsafe {
                     Handle::from(NonZeroU32::new_unchecked(
-                        BufferObject::<T>::handle_for_plane(self, 3).unwrap().u32_,
+                        BufferObject::<T>::handle_for_plane(self, 3).u32_,
                     ))
                 })
             } else {
@@ -678,16 +634,8 @@ impl error::Error for InvalidFdError {}
 /// Thrown when an error occurs during getting a bo fd
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FdError {
-    /// The underlying device has been destroyed
-    DeviceDestroyed(DeviceDestroyedError),
     /// The operation returned an invalid fd
     InvalidFd(InvalidFdError),
-}
-
-impl From<DeviceDestroyedError> for FdError {
-    fn from(err: DeviceDestroyedError) -> Self {
-        FdError::DeviceDestroyed(err)
-    }
 }
 
 impl From<InvalidFdError> for FdError {
@@ -699,7 +647,6 @@ impl From<InvalidFdError> for FdError {
 impl fmt::Display for FdError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            FdError::DeviceDestroyed(err) => err.fmt(f),
             FdError::InvalidFd(err) => err.fmt(f),
         }
     }
@@ -708,7 +655,6 @@ impl fmt::Display for FdError {
 impl error::Error for FdError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
-            FdError::DeviceDestroyed(err) => Some(err),
             FdError::InvalidFd(err) => Some(err),
         }
     }

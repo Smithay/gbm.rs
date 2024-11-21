@@ -2,7 +2,6 @@ use crate::{AsRaw, BufferObject, BufferObjectFlags, Format, Modifier, Ptr, Surfa
 
 use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd};
 
-use std::error;
 use std::ffi::CStr;
 use std::fmt;
 use std::io::{Error as IoError, Result as IoResult};
@@ -134,7 +133,7 @@ impl<T: AsFd> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { Surface::new(ptr, self.ffi.downgrade()) })
+            Ok(unsafe { Surface::new(ptr, self.ffi.clone()) })
         }
     }
 
@@ -160,7 +159,7 @@ impl<T: AsFd> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { Surface::new(ptr, self.ffi.downgrade()) })
+            Ok(unsafe { Surface::new(ptr, self.ffi.clone()) })
         }
     }
 
@@ -188,7 +187,7 @@ impl<T: AsFd> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { Surface::new(ptr, self.ffi.downgrade()) })
+            Ok(unsafe { Surface::new(ptr, self.ffi.clone()) })
         }
     }
 
@@ -205,7 +204,7 @@ impl<T: AsFd> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.clone()) })
         }
     }
 
@@ -231,7 +230,7 @@ impl<T: AsFd> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.clone()) })
         }
     }
 
@@ -259,7 +258,7 @@ impl<T: AsFd> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.clone()) })
         }
     }
 
@@ -290,7 +289,7 @@ impl<T: AsFd> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.clone()) })
         }
     }
 
@@ -322,7 +321,7 @@ impl<T: AsFd> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(BufferObject::new(ptr, self.ffi.downgrade()))
+            Ok(BufferObject::new(ptr, self.ffi.clone()))
         }
     }
 
@@ -362,7 +361,7 @@ impl<T: AsFd> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.clone()) })
         }
     }
 
@@ -410,7 +409,7 @@ impl<T: AsFd> Device<T> {
         if ptr.is_null() {
             Err(IoError::last_os_error())
         } else {
-            Ok(unsafe { BufferObject::new(ptr, self.ffi.downgrade()) })
+            Ok(unsafe { BufferObject::new(ptr, self.ffi.clone()) })
         }
     }
 }
@@ -420,19 +419,3 @@ impl<T: DrmDevice + AsFd> DrmDevice for Device<T> {}
 
 #[cfg(feature = "drm-support")]
 impl<T: DrmControlDevice + AsFd> DrmControlDevice for Device<T> {}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-/// Thrown when the underlying GBM device was already destroyed
-pub struct DeviceDestroyedError;
-
-impl fmt::Display for DeviceDestroyedError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "The underlying GBM device was already destroyed")
-    }
-}
-
-impl error::Error for DeviceDestroyedError {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
-    }
-}
