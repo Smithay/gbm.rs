@@ -22,16 +22,11 @@ impl<T: 'static> fmt::Debug for Surface<T> {
 
 /// Errors that may happen when locking the front buffer
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FrontBufferError {
-    /// An unknown error happened
-    Unknown,
-}
+pub struct FrontBufferError;
 
 impl fmt::Display for FrontBufferError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            FrontBufferError::Unknown => write!(f, "Unknown error"),
-        }
+        write!(f, "Unknown error")
     }
 }
 
@@ -74,7 +69,7 @@ impl<T: 'static> Surface<T> {
             };
             Ok(buffer)
         } else {
-            Err(FrontBufferError::Unknown)
+            Err(FrontBufferError)
         }
     }
 
