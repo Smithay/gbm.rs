@@ -1,6 +1,6 @@
 #![allow(clippy::unnecessary_cast)]
 
-use crate::{AsRaw, Device, Format, Modifier, Ptr};
+use crate::{AsRaw, Format, Modifier, Ptr};
 
 #[cfg(feature = "drm-support")]
 use drm::buffer::{Buffer as DrmBuffer, Handle, PlanarBuffer as DrmPlanarBuffer};
@@ -289,24 +289,11 @@ impl<T: 'static> BufferObject<T> {
     /// Map a region of a GBM buffer object for cpu access
     ///
     /// This function maps a region of a GBM bo for cpu read access.
-    pub fn map<'a, D, F, S>(
-        &'a self,
-        device: &Device<D>,
-        x: u32,
-        y: u32,
-        width: u32,
-        height: u32,
-        f: F,
-    ) -> Result<IoResult<S>, WrongDeviceError>
+    pub fn map<'a, D, F, S>(&'a self, x: u32, y: u32, width: u32, height: u32, f: F) -> IoResult<S>
     where
         D: AsFd + 'static,
         F: FnOnce(&MappedBufferObject<'a, T>) -> S,
     {
-        if *self._device != device.as_raw_mut() {
-            // not matching
-            return Err(WrongDeviceError);
-        }
-
         unsafe {
             let mut data: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
@@ -322,9 +309,9 @@ impl<T: 'static> BufferObject<T> {
             );
 
             if ptr.is_null() {
-                Ok(Err(IoError::last_os_error()))
+                Err(IoError::last_os_error())
             } else {
-                Ok(Ok(f(&MappedBufferObject {
+                Ok(f(&MappedBufferObject {
                     bo: BORef::Ref(self),
                     buffer: slice::from_raw_parts_mut(ptr as *mut _, (height * stride) as usize),
                     data,
@@ -333,7 +320,7 @@ impl<T: 'static> BufferObject<T> {
                     width,
                     x,
                     y,
-                })))
+                }))
             }
         }
     }
@@ -343,22 +330,16 @@ impl<T: 'static> BufferObject<T> {
     /// This function maps a region of a GBM bo for cpu read/write access.
     pub fn map_mut<'a, D, F, S>(
         &'a mut self,
-        device: &Device<D>,
         x: u32,
         y: u32,
         width: u32,
         height: u32,
         f: F,
-    ) -> Result<IoResult<S>, WrongDeviceError>
+    ) -> IoResult<S>
     where
         D: AsFd + 'static,
         F: FnOnce(&mut MappedBufferObject<'a, T>) -> S,
     {
-        if *self._device != device.as_raw_mut() {
-            // not matching
-            return Err(WrongDeviceError);
-        }
-
         unsafe {
             let mut data: *mut ::libc::c_void = ptr::null_mut();
             let mut stride = 0;
@@ -374,9 +355,9 @@ impl<T: 'static> BufferObject<T> {
             );
 
             if ptr.is_null() {
-                Ok(Err(IoError::last_os_error()))
+                Err(IoError::last_os_error())
             } else {
-                Ok(Ok(f(&mut MappedBufferObject {
+                Ok(f(&mut MappedBufferObject {
                     bo: BORef::Mut(self),
                     buffer: slice::from_raw_parts_mut(ptr as *mut _, (height * stride) as usize),
                     data,
@@ -385,7 +366,7 @@ impl<T: 'static> BufferObject<T> {
                     width,
                     x,
                     y,
-                })))
+                }))
             }
         }
     }
@@ -603,21 +584,6 @@ impl<T: 'static> DrmPlanarBuffer for BufferObject<T> {
         self.offsets()
     }
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-/// Thrown when the GBM device does not belong to the buffer object
-pub struct WrongDeviceError;
-
-impl fmt::Display for WrongDeviceError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "The gbm device specified is not the one this buffer object belongs to"
-        )
-    }
-}
-
-impl error::Error for WrongDeviceError {}
 
 /// Thrown when the fd is invalid
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
