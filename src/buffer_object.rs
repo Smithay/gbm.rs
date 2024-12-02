@@ -4,7 +4,7 @@ use crate::{AsRaw, Format, Modifier, Ptr};
 
 #[cfg(feature = "drm-support")]
 use drm::buffer::{Buffer as DrmBuffer, Handle, PlanarBuffer as DrmPlanarBuffer};
-use std::os::unix::io::{AsFd, BorrowedFd, FromRawFd, OwnedFd};
+use std::os::unix::io::{BorrowedFd, FromRawFd, OwnedFd};
 
 use std::error;
 use std::fmt;
@@ -289,9 +289,8 @@ impl<T: 'static> BufferObject<T> {
     /// Map a region of a GBM buffer object for cpu access
     ///
     /// This function maps a region of a GBM bo for cpu read access.
-    pub fn map<'a, D, F, S>(&'a self, x: u32, y: u32, width: u32, height: u32, f: F) -> IoResult<S>
+    pub fn map<'a, F, S>(&'a self, x: u32, y: u32, width: u32, height: u32, f: F) -> IoResult<S>
     where
-        D: AsFd + 'static,
         F: FnOnce(&MappedBufferObject<'a, T>) -> S,
     {
         unsafe {
@@ -328,7 +327,7 @@ impl<T: 'static> BufferObject<T> {
     /// Map a region of a GBM buffer object for cpu access
     ///
     /// This function maps a region of a GBM bo for cpu read/write access.
-    pub fn map_mut<'a, D, F, S>(
+    pub fn map_mut<'a, F, S>(
         &'a mut self,
         x: u32,
         y: u32,
@@ -337,7 +336,6 @@ impl<T: 'static> BufferObject<T> {
         f: F,
     ) -> IoResult<S>
     where
-        D: AsFd + 'static,
         F: FnOnce(&mut MappedBufferObject<'a, T>) -> S,
     {
         unsafe {
