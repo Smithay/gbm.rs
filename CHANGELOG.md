@@ -1,3 +1,7 @@
+## 0.18.0
+
+- Removed unnecessary generic from `BufferObject::map`/`BufferObject::map_mut`
+
 ## 0.17.0
 
 - `Surface`/`BufferObject` now take strong references to the underlying `gbm_device`
