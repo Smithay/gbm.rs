@@ -235,12 +235,12 @@ impl<T: 'static> BufferObject<T> {
     /// handle for the buffer object.  Each call to [`Self::fd()`] returns a new
     /// file descriptor and the caller is responsible for closing the file
     /// descriptor.
-    pub fn fd(&self) -> Result<OwnedFd, FdError> {
+    pub fn fd(&self) -> Result<OwnedFd, InvalidFdError> {
         unsafe {
             let fd = ffi::gbm_bo_get_fd(*self.ffi);
 
             if fd == -1 {
-                return Err(InvalidFdError.into());
+                return Err(InvalidFdError);
             }
 
             Ok(OwnedFd::from_raw_fd(fd))
@@ -266,12 +266,12 @@ impl<T: 'static> BufferObject<T> {
     /// handle for a plane of the buffer object. Each call to [`Self::fd_for_plane()`]
     /// returns a new file descriptor and the caller is responsible for closing
     /// the file descriptor.
-    pub fn fd_for_plane(&self, plane: i32) -> Result<OwnedFd, FdError> {
+    pub fn fd_for_plane(&self, plane: i32) -> Result<OwnedFd, InvalidFdError> {
         unsafe {
             let fd = ffi::gbm_bo_get_fd_for_plane(*self.ffi, plane);
 
             if fd == -1 {
-                return Err(InvalidFdError.into());
+                return Err(InvalidFdError);
             }
 
             Ok(OwnedFd::from_raw_fd(fd))
@@ -596,32 +596,3 @@ impl fmt::Display for InvalidFdError {
 }
 
 impl error::Error for InvalidFdError {}
-
-/// Thrown when an error occurs during getting a bo fd
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FdError {
-    /// The operation returned an invalid fd
-    InvalidFd(InvalidFdError),
-}
-
-impl From<InvalidFdError> for FdError {
-    fn from(err: InvalidFdError) -> Self {
-        FdError::InvalidFd(err)
-    }
-}
-
-impl fmt::Display for FdError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            FdError::InvalidFd(err) => err.fmt(f),
-        }
-    }
-}
-
-impl error::Error for FdError {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        match self {
-            FdError::InvalidFd(err) => Some(err),
-        }
-    }
-}
