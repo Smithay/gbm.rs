@@ -1,3 +1,10 @@
+## 0.17.0
+
+- `Surface`/`BufferObject` now take strong references to the underlying `gbm_device`
+  - Fixes a segfault when dropping the `Device` before it's derived objects
+  - Removes `DeviceDestroyedError`, `InvalidDeviceError` and `FdError`
+  - Removes the `device`-argument from `BufferObject::map` and `BufferObject::map_mut`
+
 ## 0.16.1
 
 - `Device`/`Surface`/`BufferObject` are now `Sync`

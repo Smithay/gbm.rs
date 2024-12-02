@@ -16,15 +16,12 @@ provided through the `drm-support` feature.
 Add to your Cargo.toml
 
 ```toml
-gbm = "0.16.1"
+gbm = "0.17.0"
 ```
 
 ## Example
 
 ```rust
-extern crate drm;
-extern crate gbm;
-
 use drm::control::{self, crtc, framebuffer};
 use gbm::{BufferObjectFlags, Device, Format};
 
