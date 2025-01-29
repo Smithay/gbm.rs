@@ -9,6 +9,7 @@ repository = "https://github.com/Drakulix/gbm.rs/tree/master/gbm-sys"
 keywords = ["gbm", "bindings"]
 categories = ["external-ffi-bindings"]
 license = "MIT"
+license-file = "../LICENSE"
 edition = "2021"
 
 [lib]
