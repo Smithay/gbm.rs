@@ -115,7 +115,7 @@ pub use drm_fourcc::{DrmFourcc as Format, DrmModifier as Modifier};
 use std::fmt;
 use std::sync::Arc;
 
-/// Trait for types that allow to obtain the underlying raw libinput pointer.
+/// Trait for types that allow obtaining the underlying raw pointer.
 pub trait AsRaw<T> {
     /// Receive a raw pointer representing this type.
     fn as_raw(&self) -> *const T;
@@ -126,6 +126,9 @@ pub trait AsRaw<T> {
     }
 }
 
+/// Private inner type for [`Ptr`]
+/// 
+/// This holds the raw pointer and the destructor callback for [`Ptr`].
 struct PtrDrop<T>(*mut T, Option<Box<dyn FnOnce(*mut T) + Send + 'static>>);
 
 impl<T> Drop for PtrDrop<T> {
@@ -134,11 +137,26 @@ impl<T> Drop for PtrDrop<T> {
     }
 }
 
+/// A reference-counted smart pointer with destructor callback.
+///
+/// This type wraps a raw pointer into a thread-safe, reference-counted struct
+/// which will call a provided destructor when all references to the pointer
+/// are dropped.
+///
+/// Raw pointers are !Send and !Sync by default in Rust, but this wrapper
+/// explicitly implements Send and Sync. The gbm types used with Ptr in this
+/// crate are thread-safe and therefore this is correct within the context of
+/// the gbm crate.
+///
+/// The destructor callback takes the raw pointer as an argument. It will be
+/// called when all references to the Ptr have been dropped and should perform
+/// any necessary cleanup for the pointer type.
 #[derive(Clone)]
 pub(crate) struct Ptr<T>(Arc<PtrDrop<T>>);
+
 // SAFETY: The types used with Ptr in this crate are all Send and Sync (namely gbm_device, gbm_surface and gbm_bo).
 // Reference counting is implemented with the thread-safe atomic `Arc`-wrapper.
-// The type is private and can thus not be used unsoundly by other crates.
+// The type is private and therefore cannot be used unsoundly by other crates.
 unsafe impl<T> Send for Ptr<T> {}
 unsafe impl<T> Sync for Ptr<T> {}
 
